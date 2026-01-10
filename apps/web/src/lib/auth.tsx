@@ -11,6 +11,7 @@ import {
 import { BrowserOAuthClient, clientMetadataSchema } from "@atproto/oauth-client-browser";
 import { Agent } from "@atproto/api";
 import { OAUTH_SCOPE } from "./constants";
+import { getProfile } from "./bsky";
 
 interface User {
   did: string;
@@ -89,10 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (result?.session) {
           const newAgent = new Agent(result.session);
-          const profile = await newAgent.getProfile({ actor: result.session.did });
+          const profile = await getProfile(result.session.did);
           setUser({
             did: result.session.did,
-            handle: profile.data.handle,
+            handle: profile?.handle || result.session.did,
           });
           setAgent(newAgent);
         }

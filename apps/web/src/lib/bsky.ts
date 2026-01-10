@@ -29,6 +29,21 @@ export async function getHandleByDid(did: string): Promise<string | null> {
   return results.get(did) || null;
 }
 
+export async function getProfile(actor: string): Promise<{ did: string; handle: string } | null> {
+  try {
+    const res = await fetch(`${BSKY_PUBLIC_API}/app.bsky.actor.getProfile?actor=${encodeURIComponent(actor)}`);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (data.did && data.handle) {
+      return { did: data.did, handle: data.handle };
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
 export async function getHandlesByDids(
   dids: string[],
   options: { batchSize?: number; concurrency?: number } = {}
