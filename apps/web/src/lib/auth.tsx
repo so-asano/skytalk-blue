@@ -107,7 +107,7 @@ export async function getAccessToken(did: string): Promise<string | null> {
 
     const tx = db.transaction("session", "readonly");
     const store = tx.objectStore("session");
-    const sessionData = await new Promise<any>((resolve, reject) => {
+    const sessionData = await new Promise<{ value?: { tokenSet?: { access_token?: string } } } | undefined>((resolve, reject) => {
       const req = store.get(did);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);

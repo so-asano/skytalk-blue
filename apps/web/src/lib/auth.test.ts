@@ -97,14 +97,14 @@ describe("auth utilities", () => {
       // Mock IndexedDB to return null
       const mockOpen = vi.fn().mockImplementation(() => {
         const request = {
-          onsuccess: null as ((ev: any) => void) | null,
-          onerror: null as ((ev: any) => void) | null,
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null,
           result: {
             objectStoreNames: { contains: () => false },
             close: () => {},
           },
         };
-        setTimeout(() => request.onsuccess?.({}), 0);
+        setTimeout(() => request.onsuccess?.(), 0);
         return request;
       });
 
@@ -124,16 +124,16 @@ describe("auth utilities", () => {
       // Mock IndexedDB
       const mockOpen = vi.fn().mockImplementation(() => {
         const request = {
-          onsuccess: null as ((ev: any) => void) | null,
-          onerror: null as ((ev: any) => void) | null,
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null,
           result: {
             objectStoreNames: { contains: () => true },
             transaction: () => ({
               objectStore: () => ({
                 get: () => {
                   const getRequest = {
-                    onsuccess: null as ((ev: any) => void) | null,
-                    onerror: null as ((ev: any) => void) | null,
+                    onsuccess: null as (() => void) | null,
+                    onerror: null as (() => void) | null,
                     result: {
                       value: {
                         tokenSet: {
@@ -142,7 +142,7 @@ describe("auth utilities", () => {
                       },
                     },
                   };
-                  setTimeout(() => getRequest.onsuccess?.({}), 0);
+                  setTimeout(() => getRequest.onsuccess?.(), 0);
                   return getRequest;
                 },
               }),
@@ -150,7 +150,7 @@ describe("auth utilities", () => {
             close: () => {},
           },
         };
-        setTimeout(() => request.onsuccess?.({}), 0);
+        setTimeout(() => request.onsuccess?.(), 0);
         return request;
       });
 
@@ -177,14 +177,14 @@ describe("auth utilities", () => {
     it("should return null when IndexedDB has no session store", async () => {
       const mockOpen = vi.fn().mockImplementation(() => {
         const request = {
-          onsuccess: null as ((ev: any) => void) | null,
-          onerror: null as ((ev: any) => void) | null,
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null,
           result: {
             objectStoreNames: { contains: () => false },
             close: () => {},
           },
         };
-        setTimeout(() => request.onsuccess?.({}), 0);
+        setTimeout(() => request.onsuccess?.(), 0);
         return request;
       });
 
@@ -202,8 +202,8 @@ describe("auth utilities", () => {
 
       const mockOpen = vi.fn().mockImplementation(() => {
         const request = {
-          onsuccess: null as ((ev: any) => void) | null,
-          onerror: null as ((ev: any) => void) | null,
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null,
           result: {
             objectStoreNames: { contains: () => true },
             transaction: () => ({
@@ -211,8 +211,8 @@ describe("auth utilities", () => {
                 get: (key: string) => {
                   expect(key).toBe("did:plc:test123");
                   const getRequest = {
-                    onsuccess: null as ((ev: any) => void) | null,
-                    onerror: null as ((ev: any) => void) | null,
+                    onsuccess: null as (() => void) | null,
+                    onerror: null as (() => void) | null,
                     result: {
                       value: {
                         tokenSet: {
@@ -221,7 +221,7 @@ describe("auth utilities", () => {
                       },
                     },
                   };
-                  setTimeout(() => getRequest.onsuccess?.({}), 0);
+                  setTimeout(() => getRequest.onsuccess?.(), 0);
                   return getRequest;
                 },
               }),
@@ -229,7 +229,7 @@ describe("auth utilities", () => {
             close: () => {},
           },
         };
-        setTimeout(() => request.onsuccess?.({}), 0);
+        setTimeout(() => request.onsuccess?.(), 0);
         return request;
       });
 
@@ -245,19 +245,19 @@ describe("auth utilities", () => {
     it("should return null when session data is missing tokenSet", async () => {
       const mockOpen = vi.fn().mockImplementation(() => {
         const request = {
-          onsuccess: null as ((ev: any) => void) | null,
-          onerror: null as ((ev: any) => void) | null,
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null,
           result: {
             objectStoreNames: { contains: () => true },
             transaction: () => ({
               objectStore: () => ({
                 get: () => {
                   const getRequest = {
-                    onsuccess: null as ((ev: any) => void) | null,
-                    onerror: null as ((ev: any) => void) | null,
+                    onsuccess: null as (() => void) | null,
+                    onerror: null as (() => void) | null,
                     result: { value: {} }, // Missing tokenSet
                   };
-                  setTimeout(() => getRequest.onsuccess?.({}), 0);
+                  setTimeout(() => getRequest.onsuccess?.(), 0);
                   return getRequest;
                 },
               }),
@@ -265,7 +265,7 @@ describe("auth utilities", () => {
             close: () => {},
           },
         };
-        setTimeout(() => request.onsuccess?.({}), 0);
+        setTimeout(() => request.onsuccess?.(), 0);
         return request;
       });
 
@@ -281,11 +281,11 @@ describe("auth utilities", () => {
     it("should return null when IndexedDB throws error", async () => {
       const mockOpen = vi.fn().mockImplementation(() => {
         const request = {
-          onsuccess: null as ((ev: any) => void) | null,
-          onerror: null as ((ev: any) => void) | null,
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null,
           error: new Error("IndexedDB error"),
         };
-        setTimeout(() => request.onerror?.({}), 0);
+        setTimeout(() => request.onerror?.(), 0);
         return request;
       });
 
