@@ -6,7 +6,9 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "dev:api": "turbo dev --filter=api",
-    "dev:web": "turbo dev --filter=web"
+    "dev:web": "turbo dev --filter=web",
+    "build:web": "turbo build --filter=web",
+    "build:api": "turbo build --filter=api"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
