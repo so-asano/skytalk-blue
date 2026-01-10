@@ -102,7 +102,7 @@
   },
   "notifications": {
     "title": "通知",
-    "count": "通知 {count}件",
+    "count": "通知 {count} 件",
     "empty": "通知はありません",
     "mentionedInThread": "スレッドでメンションされました",
     "mentionedInComment": "コメントでメンションされました"
