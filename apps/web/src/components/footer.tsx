@@ -20,7 +20,17 @@ export function Footer() {
         {t("footer.privacy")}
       </a>
       <span className="mx-2">•</span>
-      &copy; 2026 <a href="https://www.bluecast.app" target="_blank" rel="noopener noreferrer" className="hover:underline">Bluecast Team</a>
+      <span>
+        &copy; 2026{" "}
+        <a
+          href="https://www.bluecast.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:underline"
+        >
+          Bluecast Team
+        </a>
+      </span>
     </footer>
   );
 }
