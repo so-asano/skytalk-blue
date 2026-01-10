@@ -1,6 +1,6 @@
 // OAuth
 export const OAUTH_SCOPE =
-  "atproto include:blue.skytalk.talk.permissionSet rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app%23bsky_appview";
+  "atproto include:blue.skytalk.talk.permissionSet";
 
 // API
 export const API_URL =
