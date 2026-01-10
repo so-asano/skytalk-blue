@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/markdown";
@@ -142,7 +143,9 @@ export default function NotificationsPage() {
 
       <div className="flex flex-col gap-4">
         {loading || authLoading ? (
-          <p className="text-center text-muted-foreground py-8">...</p>
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
         ) : notifications.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">
             {t("notifications.empty")}
