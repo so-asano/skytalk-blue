@@ -10,17 +10,52 @@ import { jetstreamService } from "./services/jetstream.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Extract DIDs from mention links in text: [@handle](https://bsky.app/profile/did:xxx:xxx)
-// Limited to 10 to prevent abuse
-function extractMentionedDids(text: string | null | undefined): string[] {
+const BSKY_PUBLIC_API = "https://public.api.bsky.app/xrpc";
+
+// Extract @mentions from text (e.g., @user.bsky.social)
+function extractMentions(text: string | null | undefined): string[] {
   if (!text) return [];
-  const regex = /\]\(https:\/\/bsky\.app\/profile\/(did:[a-z]+:[a-zA-Z0-9]+)\)/g;
-  const dids: string[] = [];
+  const regex = /@([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}/g;
+  const mentions: string[] = [];
   let match;
   while ((match = regex.exec(text)) !== null) {
-    dids.push(match[1]);
+    mentions.push(match[0].slice(1)); // Remove @ prefix
   }
-  return [...new Set(dids)].slice(0, 10);
+  return [...new Set(mentions)].slice(0, 10);
+}
+
+// Resolve handles to DIDs using Bluesky public API
+async function resolveHandlesToDids(handles: string[]): Promise<Map<string, string>> {
+  const results = new Map<string, string>();
+  if (handles.length === 0) return results;
+
+  try {
+    const params = new URLSearchParams();
+    handles.forEach((handle) => params.append("actors", handle));
+
+    const res = await fetch(`${BSKY_PUBLIC_API}/app.bsky.actor.getProfiles?${params}`);
+    if (!res.ok) return results;
+
+    const data = await res.json() as { profiles?: Array<{ did?: string; handle?: string }> };
+    for (const profile of data.profiles || []) {
+      if (profile.did && profile.handle) {
+        results.set(profile.handle, profile.did);
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  return results;
+}
+
+// Extract mentioned DIDs from text
+async function extractMentionedDids(text: string | null | undefined): Promise<string[]> {
+  const handles = extractMentions(text);
+  if (handles.length === 0) return [];
+
+  const handleToDid = await resolveHandlesToDids(handles);
+  return Array.from(handleToDid.values());
 }
 
 const allowedOrigins = process.env.CORS_ORIGIN
@@ -222,7 +257,8 @@ app.post("/api/threads", async (req, res) => {
       .returning();
 
     // Create notifications for mentioned users
-    const mentionedDids = extractMentionedDids(text).filter(did => did !== authorDid);
+    const allMentionedDids = await extractMentionedDids(text);
+    const mentionedDids = allMentionedDids.filter(did => did !== authorDid);
     if (mentionedDids.length > 0) {
       await db.insert(notifications).values(
         mentionedDids.map(did => ({ did, atUri }))
@@ -304,7 +340,8 @@ app.post("/api/threads/:id/comments", async (req, res) => {
       .where(eq(threads.id, req.params.id));
 
     // Create notifications for mentioned users
-    const mentionedDids = extractMentionedDids(text).filter(did => did !== authorDid);
+    const allMentionedDids = await extractMentionedDids(text);
+    const mentionedDids = allMentionedDids.filter(did => did !== authorDid);
     if (mentionedDids.length > 0) {
       await db.insert(notifications).values(
         mentionedDids.map(did => ({ did, atUri }))
