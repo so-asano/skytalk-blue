@@ -30,6 +30,97 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 let oauthClient: BrowserOAuthClient | null = null;
 
+const API_SECRET = process.env.NEXT_PUBLIC_API_SECRET || "";
+
+async function hmacSign(message: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(message));
+  return Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Site-level protected fetch (HMAC + timestamp)
+export async function protectedFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const timestamp = Date.now().toString();
+  const signature = await hmacSign(timestamp, API_SECRET);
+
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      "Content-Type": "application/json",
+      "X-Timestamp": timestamp,
+      "X-Signature": signature,
+    },
+  });
+}
+
+// User-level protected fetch (HMAC + timestamp + Bearer token)
+export async function authenticatedFetch(
+  url: string,
+  did: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const accessToken = await getAccessToken(did);
+  if (!accessToken) {
+    throw new Error("Not authenticated");
+  }
+
+  const timestamp = Date.now().toString();
+  const signature = await hmacSign(timestamp, API_SECRET);
+
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      "Content-Type": "application/json",
+      "X-Timestamp": timestamp,
+      "X-Signature": signature,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function getAccessToken(did: string): Promise<string | null> {
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open("@atproto-oauth-client");
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+
+    if (!db.objectStoreNames.contains("session")) {
+      db.close();
+      return null;
+    }
+
+    const tx = db.transaction("session", "readonly");
+    const store = tx.objectStore("session");
+    const sessionData = await new Promise<any>((resolve, reject) => {
+      const req = store.get(did);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+
+    return sessionData?.value?.tokenSet?.access_token || null;
+  } catch (e) {
+    console.error("Failed to get access token:", e);
+    return null;
+  }
+}
+
 async function getOAuthClient(forceNew = false) {
   if (oauthClient && !forceNew) return oauthClient;
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BurgerMenu } from "@/components/burger-menu";
 import { useI18n } from "@/lib/i18n";
-import { useAuth } from "@/lib/auth";
+import { useAuth, authenticatedFetch } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -23,7 +23,7 @@ export function Header() {
       }
 
       try {
-        const res = await fetch(`${API_URL}/api/notifications/${user.did}`);
+        const res = await authenticatedFetch(`${API_URL}/api/notifications/${user.did}`, user.did);
         if (res.ok) {
           const data = await res.json();
           const unreadCount = data.filter((n: { markedAsReadAt: string | null }) => !n.markedAsReadAt).length;

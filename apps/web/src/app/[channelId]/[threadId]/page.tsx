@@ -20,7 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
-import { useAuth } from "@/lib/auth";
+import { useAuth, authenticatedFetch } from "@/lib/auth";
 import { getHandlesByDids, getDidsByHandles, extractMentions, replaceMentionsWithMap } from "@/lib/bsky";
 import { formatDate } from "@/lib/utils";
 
@@ -246,9 +246,8 @@ export default function ThreadPage() {
       });
 
       // Save to API with AT URI
-      await fetch(`${API_URL}/api/threads/${threadId}/comments`, {
+      await authenticatedFetch(`${API_URL}/api/threads/${threadId}/comments`, user.did, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: newComment,
           authorDid: user.did,
@@ -304,7 +303,7 @@ export default function ThreadPage() {
         });
 
         // Delete from API (soft delete)
-        await fetch(`${API_URL}/api/threads/${threadId}`, {
+        await authenticatedFetch(`${API_URL}/api/threads/${threadId}`, user.did, {
           method: "DELETE",
         });
 
@@ -327,7 +326,7 @@ export default function ThreadPage() {
         });
 
         // Delete from API (soft delete)
-        await fetch(`${API_URL}/api/comments/${comment.id}`, {
+        await authenticatedFetch(`${API_URL}/api/comments/${comment.id}`, user.did, {
           method: "DELETE",
         });
 

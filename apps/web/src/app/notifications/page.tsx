@@ -7,7 +7,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/markdown";
 import { useI18n } from "@/lib/i18n";
-import { useAuth } from "@/lib/auth";
+import { useAuth, authenticatedFetch } from "@/lib/auth";
 import { getHandlesByDids } from "@/lib/bsky";
 import { formatDate } from "@/lib/utils";
 
@@ -80,7 +80,7 @@ export default function NotificationsPage() {
 
       try {
         // Fetch notifications
-        const res = await fetch(`${API_URL}/api/notifications/${user.did}`);
+        const res = await authenticatedFetch(`${API_URL}/api/notifications/${user.did}`, user.did);
         if (!res.ok) {
           setLoading(false);
           return;
@@ -148,7 +148,7 @@ export default function NotificationsPage() {
         setNotifications(withHandles);
 
         // Mark all as read
-        await fetch(`${API_URL}/api/notifications/${user.did}/read-all`, {
+        await authenticatedFetch(`${API_URL}/api/notifications/${user.did}/read-all`, user.did, {
           method: "PUT",
         });
       } catch (error) {

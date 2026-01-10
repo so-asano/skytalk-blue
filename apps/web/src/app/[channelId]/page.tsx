@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/accordion";
 import { ThreadCard, Thread } from "@/components/thread-card";
 import { useI18n } from "@/lib/i18n";
-import { useAuth } from "@/lib/auth";
+import { useAuth, authenticatedFetch } from "@/lib/auth";
 import { getHandlesByDids } from "@/lib/bsky";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -192,9 +192,8 @@ export default function ChannelPage() {
       });
 
       // Save to API with AT URI
-      await fetch(`${API_URL}/api/threads`, {
+      await authenticatedFetch(`${API_URL}/api/threads`, user.did, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newThreadTitle,
           text: newThreadContent || null,
