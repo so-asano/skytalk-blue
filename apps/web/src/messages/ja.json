@@ -1,0 +1,108 @@
+{
+  "common": {
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "cancel": "キャンセル",
+    "create": "作成",
+    "delete": "削除",
+    "back": "戻る",
+    "top": "トップ",
+    "loading": "読み込み中...",
+    "language": "言語",
+    "theme": "テーマ",
+    "menu": "メニュー"
+  },
+  "theme": {
+    "light": "ライト",
+    "dark": "ダーク",
+    "system": "システム"
+  },
+  "auth": {
+    "loginTitle": "ログイン",
+    "enterHandle": "Blueskyハンドルを入力:",
+    "handlePlaceholder": "handle.bsky.social",
+    "loginRequiredPrefix": "書き込むには",
+    "loginRequiredLink": "ログイン",
+    "loginRequiredSuffix": "してください",
+    "noAccount": "アカウントがない場合は",
+    "createAccount": "作成する",
+    "loggingIn": "ログイン処理中...",
+    "authFailed": "認証に失敗しました",
+    "callbackProcessing": "認証処理中...",
+    "callbackProcessingDesc": "しばらくお待ちください",
+    "callbackSuccess": "ログインしました",
+    "callbackRedirecting": "リダイレクト中...",
+    "callbackError": "認証エラー",
+    "backToHome": "トップに戻る"
+  },
+  "channel": {
+    "list": "チャンネル一覧",
+    "threads": "{count} スレッド",
+    "showMore": "もっと見る",
+    "showLess": "表示を減らす",
+    "names": {
+      "general": "一般",
+      "tech": "技術",
+      "random": "雑談",
+      "news": "ニュース",
+      "gaming": "ゲーム",
+      "anime": "アニメ",
+      "music": "音楽",
+      "movies": "映画",
+      "sports": "スポーツ",
+      "crypto": "暗号資産",
+      "ai": "AI",
+      "bluesky": "Bluesky",
+      "photography": "写真",
+      "cooking": "料理",
+      "travel": "旅行",
+      "books": "読書",
+      "fitness": "フィットネス",
+      "art": "アート",
+      "diy": "DIY",
+      "pets": "ペット"
+    }
+  },
+  "thread": {
+    "list": "スレッド一覧",
+    "new": "+ 新規スレッド作成",
+    "title": "タイトル",
+    "titlePlaceholder": "スレッドのタイトル",
+    "content": "本文",
+    "comments": "{count} comments",
+    "recent": "最近のスレッド",
+    "noRecent": "まだスレッドがありません",
+    "noThreads": "スレッドがありません",
+    "seeMore": "もっと見る",
+    "all": "すべてのスレッド",
+    "noMore": "すべて読み込みました",
+    "newComments": "新しいコメントが{count}件あります",
+    "showNewComments": "表示",
+    "newThreads": "新しいスレッドが{count}件あります",
+    "showNewThreads": "表示",
+    "confirmDelete": "このスレッドを削除しますか？",
+    "confirmDeleteComment": "このコメントを削除しますか？"
+  },
+  "post": {
+    "write": "本文",
+    "name": "名前",
+    "namePlaceholder": "名無しさん",
+    "contentPlaceholder": "コメントを入力...",
+    "markdownHint": "GitHub Flavored Markdown が使えます",
+    "preview": "プレビュー",
+    "nothingToPreview": "プレビューする内容がありません",
+    "submit": "書き込む"
+  },
+  "footer": {
+    "terms": "利用規約",
+    "privacy": "プライバシーポリシー"
+  },
+  "error": {
+    "notFound": "ページが見つかりません",
+    "notFoundDescription": "お探しのページは存在しないか、移動した可能性があります。",
+    "error": "エラーが発生しました",
+    "errorDescription": "予期しないエラーが発生しました。",
+    "backToHome": "トップに戻る",
+    "tryAgain": "再試行"
+  }
+}

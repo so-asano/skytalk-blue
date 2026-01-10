@@ -1,0 +1,26 @@
+{
+  "id": "blue.skytalk.permissionSet",
+  "defs": {
+    "main": {
+      "type": "permission-set",
+      "title": "SkyTalk.Blue",
+      "detail": "Create threads and comments",
+      "detail:lang": {
+        "en": "Create threads and comments",
+        "ja-JP": "スレッドとコメントの作成"
+      },
+      "permissions": [
+        {
+          "type": "permission",
+          "resource": "repo",
+          "collection": [
+            "blue.skytalk.talk.thread",
+            "blue.skytalk.talk.comment"
+          ]
+        }
+      ]
+    }
+  },
+  "$type": "com.atproto.lexicon.schema",
+  "lexicon": 1
+}

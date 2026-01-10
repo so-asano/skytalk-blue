@@ -1,0 +1,42 @@
+{
+  "lexicon": 1,
+  "id": "blue.skytalk.talk.thread",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A thread in a channel",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "channelId",
+          "title",
+          "createdAt"
+        ],
+        "properties": {
+          "channelId": {
+            "type": "string",
+            "description": "The channel this thread belongs to"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "maxGraphemes": 3000,
+            "description": "The title of the thread"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "maxGraphemes": 40000,
+            "description": "The text content of the thread"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Timestamp of thread creation"
+          }
+        }
+      }
+    }
+  }
+}

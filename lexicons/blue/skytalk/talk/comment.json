@@ -1,0 +1,33 @@
+{
+  "lexicon": 1,
+  "id": "blue.skytalk.talk.comment",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A post (response) in a thread",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["threadUri", "content", "createdAt"],
+        "properties": {
+          "threadUri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT URI of the thread this post belongs to"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "maxGraphemes": 40000,
+            "description": "The content of the post"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Timestamp of post creation"
+          }
+        }
+      }
+    }
+  }
+}
