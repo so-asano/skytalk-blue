@@ -274,11 +274,34 @@ export class JetstreamService {
       if (action === "CREATE" && record) {
         console.log(`Comment CREATE event for ${atUri} - threadUri: ${record.threadUri}`);
       } else if (action === "DELETE") {
-        // Mark comment as deleted
-        await db
-          .update(comments)
-          .set({ deletedAt: new Date(), updatedAt: new Date() })
-          .where(eq(comments.atUri, atUri));
+        // Get comment to find threadId
+        const comment = await db
+          .select()
+          .from(comments)
+          .where(eq(comments.atUri, atUri))
+          .limit(1);
+
+        if (comment.length > 0) {
+          // Mark comment as deleted
+          await db
+            .update(comments)
+            .set({ deletedAt: new Date(), updatedAt: new Date() })
+            .where(eq(comments.atUri, atUri));
+
+          // Decrement thread commentCount
+          const thread = await db
+            .select()
+            .from(threads)
+            .where(eq(threads.id, comment[0].threadId))
+            .limit(1);
+
+          if (thread.length > 0 && thread[0].commentCount > 0) {
+            await db
+              .update(threads)
+              .set({ commentCount: thread[0].commentCount - 1, updatedAt: new Date() })
+              .where(eq(threads.id, comment[0].threadId));
+          }
+        }
         console.log(`Comment DELETE event for ${atUri}`);
       }
 
