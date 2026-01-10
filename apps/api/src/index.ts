@@ -2,13 +2,26 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { db } from "./db/index.js";
-import { channels, threads, comments } from "./db/schema.js";
+import { channels, threads, comments, notifications } from "./db/schema.js";
 import { seedChannels } from "./db/seed.js";
 import { eq, desc, isNull, and, gt, asc } from "drizzle-orm";
 import { jetstreamService } from "./services/jetstream.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Extract DIDs from mention links in text: [@handle](https://bsky.app/profile/did:xxx:xxx)
+// Limited to 10 to prevent abuse
+function extractMentionedDids(text: string | null | undefined): string[] {
+  if (!text) return [];
+  const regex = /\]\(https:\/\/bsky\.app\/profile\/(did:[a-z]+:[a-zA-Z0-9]+)\)/g;
+  const dids: string[] = [];
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    dids.push(match[1]);
+  }
+  return [...new Set(dids)].slice(0, 10);
+}
 
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
@@ -208,6 +221,14 @@ app.post("/api/threads", async (req, res) => {
       })
       .returning();
 
+    // Create notifications for mentioned users
+    const mentionedDids = extractMentionedDids(text).filter(did => did !== authorDid);
+    if (mentionedDids.length > 0) {
+      await db.insert(notifications).values(
+        mentionedDids.map(did => ({ did, atUri }))
+      );
+    }
+
     res.status(201).json(newThread);
   } catch (error) {
     console.error("Error creating thread:", error);
@@ -282,6 +303,14 @@ app.post("/api/threads/:id/comments", async (req, res) => {
       .set({ commentCount: thread[0].commentCount + 1, updatedAt: new Date() })
       .where(eq(threads.id, req.params.id));
 
+    // Create notifications for mentioned users
+    const mentionedDids = extractMentionedDids(text).filter(did => did !== authorDid);
+    if (mentionedDids.length > 0) {
+      await db.insert(notifications).values(
+        mentionedDids.map(did => ({ did, atUri }))
+      );
+    }
+
     res.status(201).json(newComment);
   } catch (error) {
     console.error("Error creating comment:", error);
@@ -326,6 +355,54 @@ app.delete("/api/comments/:id", async (req, res) => {
   } catch (error) {
     console.error("Error deleting comment:", error);
     res.status(500).json({ error: "Failed to delete comment" });
+  }
+});
+
+// Get notifications for a user
+app.get("/api/notifications/:did", async (req, res) => {
+  try {
+    const userNotifications = await db
+      .select()
+      .from(notifications)
+      .where(and(eq(notifications.did, req.params.did), isNull(notifications.deletedAt)))
+      .orderBy(desc(notifications.createdAt));
+
+    res.json(userNotifications);
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+// Mark notification as read
+app.put("/api/notifications/:id/read", async (req, res) => {
+  try {
+    const now = new Date();
+    await db
+      .update(notifications)
+      .set({ markedAsReadAt: now, updatedAt: now })
+      .where(eq(notifications.id, parseInt(req.params.id)));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error marking notification as read:", error);
+    res.status(500).json({ error: "Failed to mark notification as read" });
+  }
+});
+
+// Mark all notifications as read for a user
+app.put("/api/notifications/:did/read-all", async (req, res) => {
+  try {
+    const now = new Date();
+    await db
+      .update(notifications)
+      .set({ markedAsReadAt: now, updatedAt: now })
+      .where(and(eq(notifications.did, req.params.did), isNull(notifications.markedAsReadAt)));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error marking notifications as read:", error);
+    res.status(500).json({ error: "Failed to mark notifications as read" });
   }
 });
 

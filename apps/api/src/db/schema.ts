@@ -71,3 +71,14 @@ export const commentEvents = pgTable("comment_events", {
   cursor: bigint("cursor", { mode: "bigint" }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Notifications for mentions
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  did: text("did").notNull(), // Recipient DID
+  atUri: text("at_uri").notNull(), // Thread or comment AT URI
+  markedAsReadAt: timestamp("marked_as_read_at"), // null = unread
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
+});
