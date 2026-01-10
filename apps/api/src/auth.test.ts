@@ -106,7 +106,7 @@ describe("createSiteAuthMiddleware", () => {
   beforeEach(() => {
     jsonMock = vi.fn();
     statusMock = vi.fn().mockReturnValue({ json: jsonMock });
-    mockRes = { status: statusMock, json: jsonMock };
+    mockRes = { status: statusMock as unknown as Response["status"], json: jsonMock as unknown as Response["json"] };
     nextFn = vi.fn();
     mockReq = { headers: {} };
   });
@@ -228,7 +228,7 @@ describe("requireUserAuth", () => {
   beforeEach(() => {
     jsonMock = vi.fn();
     statusMock = vi.fn().mockReturnValue({ json: jsonMock });
-    mockRes = { status: statusMock, json: jsonMock };
+    mockRes = { status: statusMock as unknown as Response["status"], json: jsonMock as unknown as Response["json"] };
     nextFn = vi.fn();
     mockReq = { headers: {} };
   });
