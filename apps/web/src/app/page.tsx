@@ -133,12 +133,12 @@ export default function Home() {
   }, []);
 
   // Poll for new threads every 10 seconds (test)
-  useEffect(() => {
-    const interval = setInterval(checkForNewThreads, 10000);
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
+  // useEffect(() => {
+  //   const interval = setInterval(checkForNewThreads, 10000);
+  //   return () => {
+  //     clearInterval(interval);
+  //   };
+  // }, []);
 
   // Cleanup toast on unmount only
   useEffect(() => {
