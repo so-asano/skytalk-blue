@@ -205,19 +205,18 @@ export default function ChannelPage() {
       });
 
       // Fetch fresh data to sync
-      const threadsRes = await fetch(`${API_URL}/api/threads`);
+      const threadsRes = await fetch(`${API_URL}/api/threads?channelId=${channelId}`);
       if (threadsRes.ok) {
-        const threadsData = await threadsRes.json();
-        if (Array.isArray(threadsData)) {
-          const filtered = threadsData.filter((t: Thread) => t.channelId === channelId);
-          const dids = filtered.map((t: Thread) => t.authorDid);
-          const handleMap = await getHandlesByDids(dids);
-          const withHandles = filtered.map((t: Thread) => ({
-            ...t,
-            authorHandle: handleMap.get(t.authorDid) || t.authorDid,
-          }));
-          setThreads(withHandles);
-        }
+        const data = await threadsRes.json();
+        const threadsData = data.threads as Thread[];
+        newestIdRef.current = data.newestId;
+        const dids = threadsData.map((t: Thread) => t.authorDid);
+        const handleMap = await getHandlesByDids(dids);
+        const withHandles = threadsData.map((t: Thread) => ({
+          ...t,
+          authorHandle: handleMap.get(t.authorDid) || t.authorDid,
+        }));
+        setThreads(withHandles);
       }
 
       setNewThreadTitle("");
