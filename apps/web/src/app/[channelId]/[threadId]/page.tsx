@@ -22,6 +22,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { getHandlesByDids } from "@/lib/bsky";
+import { isMac } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -71,7 +72,10 @@ export default function ThreadPage() {
   const [loginHandle, setLoginHandle] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [posting, setPosting] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: "thread" | "comment"; item?: Comment } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: "thread" | "comment";
+    item?: Comment;
+  } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
   const toastIdRef = useRef<string | number | null>(null);
@@ -172,7 +176,8 @@ export default function ThreadPage() {
         const handleMap = await getHandlesByDids(allDids);
         setThread({
           ...data.thread,
-          authorHandle: handleMap.get(data.thread.authorDid) || data.thread.authorDid,
+          authorHandle:
+            handleMap.get(data.thread.authorDid) || data.thread.authorDid,
         });
         setComments(
           data.comments.map((c: Comment) => ({
@@ -319,14 +324,17 @@ export default function ThreadPage() {
     const hh = String(d.getHours()).padStart(2, "0");
     const mi = String(d.getMinutes()).padStart(2, "0");
     const ss = String(d.getSeconds()).padStart(2, "0");
-    const days = locale === "ja"
-      ? ["日", "月", "火", "水", "木", "金", "土"]
-      : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const days =
+      locale === "ja"
+        ? ["日", "月", "火", "水", "木", "金", "土"]
+        : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     return `${yyyy}/${mm}/${dd}(${days[d.getDay()]}) ${hh}:${mi}:${ss}`;
   };
 
   const channelName = channel
-    ? locale === "ja" ? channel.nameJa : channel.nameEn
+    ? locale === "ja"
+      ? channel.nameJa
+      : channel.nameEn
     : channelId;
 
   if (isNotFound) {
@@ -348,7 +356,9 @@ export default function ThreadPage() {
         <div className="flex flex-col gap-4">
           <Card>
             <CardContent className="py-5 px-5">
-              <h2 className="text-xl font-bold leading-relaxed mb-2">{thread.title}</h2>
+              <h2 className="text-xl font-bold leading-relaxed mb-2">
+                {thread.title}
+              </h2>
               <div className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
                 <a
                   href={`https://bsky.app/profile/${thread.authorDid}`}
@@ -410,7 +420,9 @@ export default function ThreadPage() {
                       <span>· {formatDate(c.createdAt)}</span>
                       {user?.did === c.authorDid && (
                         <button
-                          onClick={() => setDeleteTarget({ type: "comment", item: c })}
+                          onClick={() =>
+                            setDeleteTarget({ type: "comment", item: c })
+                          }
                           className="ml-1 p-1 text-muted-foreground/60 hover:text-destructive transition-colors"
                           title={t("common.delete")}
                         >
@@ -440,13 +452,21 @@ export default function ThreadPage() {
               <CardContent className="py-4 space-y-4">
                 <div className="flex border-b">
                   <button
-                    className={`px-4 py-2 text-sm font-medium ${commentTab === "write" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
+                    className={`px-4 py-2 text-sm font-medium ${
+                      commentTab === "write"
+                        ? "border-b-2 border-primary text-primary"
+                        : "text-muted-foreground"
+                    }`}
                     onClick={() => setCommentTab("write")}
                   >
                     {t("post.write")}
                   </button>
                   <button
-                    className={`px-4 py-2 text-sm font-medium ${commentTab === "preview" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
+                    className={`px-4 py-2 text-sm font-medium ${
+                      commentTab === "preview"
+                        ? "border-b-2 border-primary text-primary"
+                        : "text-muted-foreground"
+                    }`}
                     onClick={() => setCommentTab("preview")}
                   >
                     {t("post.preview")}
@@ -456,6 +476,12 @@ export default function ThreadPage() {
                   <Textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        handlePostComment();
+                      }
+                    }}
                     className="h-[90px] resize-none"
                     maxLength={4000}
                     placeholder={t("post.contentPlaceholder")}
@@ -467,13 +493,22 @@ export default function ThreadPage() {
                         <Markdown>{newComment}</Markdown>
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">{t("post.nothingToPreview")}</p>
+                      <p className="text-muted-foreground">
+                        {t("post.nothingToPreview")}
+                      </p>
                     )}
                   </div>
                 )}
                 <div className="flex justify-start">
-                  <Button onClick={handlePostComment} disabled={posting || !newComment.trim()}>
-                    {posting ? <Loader2 className="w-4 h-4 animate-spin" /> : t("post.submit")}
+                  <Button
+                    onClick={handlePostComment}
+                    disabled={posting || !newComment.trim()}
+                  >
+                    {posting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>{t("post.submit")}</>
+                    )}
                   </Button>
                 </div>
               </CardContent>
@@ -495,12 +530,15 @@ export default function ThreadPage() {
         </div>
       )}
 
-      <Dialog open={showLoginModal} onOpenChange={(open) => {
-        setShowLoginModal(open);
-        if (!open) {
-          setLoginHandle("");
-        }
-      }}>
+      <Dialog
+        open={showLoginModal}
+        onOpenChange={(open) => {
+          setShowLoginModal(open);
+          if (!open) {
+            setLoginHandle("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("auth.loginTitle")}</DialogTitle>
@@ -511,12 +549,22 @@ export default function ThreadPage() {
                 value={loginHandle}
                 onChange={(e) => setLoginHandle(e.target.value)}
                 placeholder={t("auth.handlePlaceholder")}
-                onKeyDown={(e) => e.key === "Enter" && !loginLoading && handleLogin()}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && !loginLoading && handleLogin()
+                }
                 disabled={loginLoading}
                 className="flex-1 rounded-r-none border-r-0"
               />
-              <Button onClick={handleLogin} disabled={loginLoading} className="rounded-l-none">
-                {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.login")}
+              <Button
+                onClick={handleLogin}
+                disabled={loginLoading}
+                className="rounded-l-none"
+              >
+                {loginLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  t("common.login")
+                )}
               </Button>
             </div>
             <p className="text-sm text-muted-foreground text-center">
@@ -534,7 +582,10 @@ export default function ThreadPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("common.delete")}</DialogTitle>
@@ -545,11 +596,23 @@ export default function ThreadPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleting}
+            >
               {t("common.cancel")}
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>
-              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.delete")}
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t("common.delete")
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
