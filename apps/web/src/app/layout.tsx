@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/header";
@@ -6,10 +6,27 @@ import { Footer } from "@/components/footer";
 
 const baseUrl = process.env.NEXT_PUBLIC_URL || "https://skytalk.blue";
 
+export const viewport: Viewport = {
+  themeColor: "#18181b",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: "SkyTalk.Blue",
   description: "Free conversations on ATProto",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SkyTalk",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-180.png",
+  },
   openGraph: {
     title: "SkyTalk.Blue",
     description: "Free conversations on ATProto",
