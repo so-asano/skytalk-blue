@@ -108,25 +108,25 @@ app.get("/api/threads", async (req, res) => {
         .select()
         .from(threads)
         .where(and(...conditions))
-        .orderBy(asc(threads.id))
+        .orderBy(desc(threads.updatedAt))
         .limit(limit);
 
       const newestId = newThreads.length > 0
-        ? newThreads[newThreads.length - 1].id
+        ? newThreads[0].id
         : afterId as string;
 
       res.json({
-        threads: newThreads.reverse(), // Return newest first
+        threads: newThreads,
         newestId,
         hasMore: newThreads.length === limit,
       });
     } else {
-      // Initial load - get latest threads
+      // Initial load - get latest threads by update time
       const allThreads = await db
         .select()
         .from(threads)
         .where(and(...conditions))
-        .orderBy(desc(threads.id))
+        .orderBy(desc(threads.updatedAt))
         .limit(limit);
 
       const newestId = allThreads.length > 0 ? allThreads[0].id : null;
