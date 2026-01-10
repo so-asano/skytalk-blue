@@ -92,7 +92,8 @@
     "markdownHint": "GitHub Flavored Markdown が使えます",
     "preview": "プレビュー",
     "nothingToPreview": "プレビューする内容がありません",
-    "submit": "書き込む"
+    "submit": "書き込む",
+    "reply": "返信"
   },
   "footer": {
     "terms": "利用規約",

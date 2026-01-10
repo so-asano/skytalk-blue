@@ -92,7 +92,8 @@
     "markdownHint": "GitHub Flavored Markdown supported",
     "preview": "Preview",
     "nothingToPreview": "Nothing to preview",
-    "submit": "Submit"
+    "submit": "Submit",
+    "reply": "Reply"
   },
   "footer": {
     "terms": "Terms of Use",

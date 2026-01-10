@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, notFound } from "next/navigation";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Reply, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -79,6 +79,7 @@ export default function ThreadPage() {
   const [deleting, setDeleting] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
   const toastIdRef = useRef<string | number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleLogin = async () => {
     if (!loginHandle.trim()) return;
@@ -316,6 +317,22 @@ export default function ThreadPage() {
     }
   };
 
+  const handleReply = (comment: Comment) => {
+    const quoted = comment.text
+      .split("\n")
+      .map((line) => `> ${line}`)
+      .join("\n");
+    setNewComment(quoted + "\n\n");
+    setCommentTab("write");
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(
+        textareaRef.current.value.length,
+        textareaRef.current.value.length
+      );
+    }, 0);
+  };
+
   const channelName = channel
     ? locale === "ja"
       ? channel.nameJa
@@ -403,7 +420,7 @@ export default function ThreadPage() {
                         @{c.authorHandle || c.authorDid}
                       </a>
                       <span>· {formatDate(c.createdAt, locale)}</span>
-                      {user?.did === c.authorDid && (
+                      {user?.did === c.authorDid ? (
                         <button
                           onClick={() =>
                             setDeleteTarget({ type: "comment", item: c })
@@ -412,6 +429,14 @@ export default function ThreadPage() {
                           title={t("common.delete")}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      ) : user && (
+                        <button
+                          onClick={() => handleReply(c)}
+                          className="ml-1 p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
+                          title={t("post.reply")}
+                        >
+                          <Reply className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -459,6 +484,7 @@ export default function ThreadPage() {
                 </div>
                 {commentTab === "write" ? (
                   <Textarea
+                    ref={textareaRef}
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     onKeyDown={(e) => {
