@@ -187,15 +187,13 @@ export default function NotificationsPage() {
           </p>
         ) : (
           notifications.map((notification) => {
-            const isUnread = !notification.markedAsReadAt;
-
             // Thread notification - same format as thread page
             if (notification.type === "thread" && notification.thread) {
               const thread = notification.thread;
               return (
                 <Card
                   key={notification.id}
-                  className={`cursor-pointer hover:bg-muted/50 transition-colors ${isUnread ? "border-primary/50 bg-primary/5" : ""}`}
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => router.push(`/${thread.channelId}/${thread.id}`)}
                 >
                   <CardContent className="py-5 px-5">
@@ -240,7 +238,7 @@ export default function NotificationsPage() {
               return (
                 <Card
                   key={notification.id}
-                  className={`cursor-pointer hover:bg-muted/50 transition-colors ${isUnread ? "border-primary/50 bg-primary/5" : ""}`}
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => router.push(`/${parentThread.channelId}/${parentThread.id}#comment-${comment.id}`)}
                 >
                   <CardContent className="py-5 px-5">
