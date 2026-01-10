@@ -20,10 +20,13 @@ export function Markdown({ children, className }: MarkdownProps) {
     .join('\n');
 
   return (
-    <div className={className}>
+    <div className={`break-words ${className || ""}`} style={{ overflowWrap: "anywhere" }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          p({ children, ...props }) {
+            return <div className="my-4 first:mt-0 last:mb-0" {...props}>{children}</div>;
+          },
           a({ href, children, ...props }) {
             return (
               <a
@@ -39,12 +42,10 @@ export function Markdown({ children, className }: MarkdownProps) {
           pre({ children }) {
             return <>{children}</>;
           },
-          code({ className, children, node, ...props }) {
+          code({ className, children, inline, ...props }) {
             const match = /language-(\w+)/.exec(className || "");
-            const isBlock = node?.position?.start.line !== node?.position?.end.line ||
-                           String(children).includes("\n");
 
-            if (!isBlock) {
+            if (inline) {
               return (
                 <code className="bg-muted px-1.5 py-0.5 rounded text-sm" {...props}>
                   {children}
