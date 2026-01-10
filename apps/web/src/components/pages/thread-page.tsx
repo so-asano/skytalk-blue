@@ -8,6 +8,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { formatDate } from "@/lib/utils";
 
 export interface ThreadData {
   id: string;
@@ -63,20 +64,6 @@ export function ThreadPage({
   const [newComment, setNewComment] = useState("");
   const [commentTab, setCommentTab] = useState<"write" | "preview">("write");
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mi = String(d.getMinutes()).padStart(2, "0");
-    const ss = String(d.getSeconds()).padStart(2, "0");
-    const days = locale === "ja"
-      ? ["日", "月", "火", "水", "木", "金", "土"]
-      : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return `${yyyy}/${mm}/${dd}(${days[d.getDay()]}) ${hh}:${mi}:${ss}`;
-  };
-
   const handleSubmit = () => {
     if (!newComment.trim()) return;
     onPostComment?.(newComment);
@@ -106,7 +93,7 @@ export function ThreadPage({
             >
               @{thread.authorHandle || thread.authorDid}
             </a>
-            {" "}· {formatDate(thread.createdAt)}
+            {" "}· {formatDate(thread.createdAt, locale)}
           </div>
           {thread.text && (
             <div className="prose prose-sm max-w-none mb-4">
@@ -139,7 +126,7 @@ export function ThreadPage({
                   >
                     @{c.authorHandle || c.authorDid}
                   </a>
-                  {" "}· {formatDate(c.createdAt)}
+                  {" "}· {formatDate(c.createdAt, locale)}
                 </div>
                 <div className="prose prose-sm max-w-none">
                   <Markdown>{c.text}</Markdown>

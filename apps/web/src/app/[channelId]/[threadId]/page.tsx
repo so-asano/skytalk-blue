@@ -22,7 +22,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { getHandlesByDids } from "@/lib/bsky";
-import { isMac } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -316,21 +316,6 @@ export default function ThreadPage() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mi = String(d.getMinutes()).padStart(2, "0");
-    const ss = String(d.getSeconds()).padStart(2, "0");
-    const days =
-      locale === "ja"
-        ? ["日", "月", "火", "水", "木", "金", "土"]
-        : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return `${yyyy}/${mm}/${dd}(${days[d.getDay()]}) ${hh}:${mi}:${ss}`;
-  };
-
   const channelName = channel
     ? locale === "ja"
       ? channel.nameJa
@@ -368,7 +353,7 @@ export default function ThreadPage() {
                 >
                   @{thread.authorHandle || thread.authorDid}
                 </a>
-                <span>· {formatDate(thread.createdAt)}</span>
+                <span>· {formatDate(thread.createdAt, locale)}</span>
                 {user?.did === thread.authorDid && (
                   <button
                     onClick={() => setDeleteTarget({ type: "thread" })}
@@ -417,7 +402,7 @@ export default function ThreadPage() {
                       >
                         @{c.authorHandle || c.authorDid}
                       </a>
-                      <span>· {formatDate(c.createdAt)}</span>
+                      <span>· {formatDate(c.createdAt, locale)}</span>
                       {user?.did === c.authorDid && (
                         <button
                           onClick={() =>

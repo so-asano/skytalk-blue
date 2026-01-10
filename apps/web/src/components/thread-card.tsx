@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
+import { formatDate } from "@/lib/utils";
 
 export interface Thread {
   id: string;
@@ -24,19 +25,6 @@ interface ThreadCardProps {
 
 export function ThreadCard({ thread, channelName, showChannel = true, highlighted = false }: ThreadCardProps) {
   const { t, locale } = useI18n();
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mi = String(d.getMinutes()).padStart(2, "0");
-    const days = locale === "ja"
-      ? ["日", "月", "火", "水", "木", "金", "土"]
-      : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return `${yyyy}/${mm}/${dd}(${days[d.getDay()]}) ${hh}:${mi}`;
-  };
 
   const displayChannelName = channelName || t(`channel.names.${thread.channelId}`);
 
@@ -76,7 +64,7 @@ export function ThreadCard({ thread, channelName, showChannel = true, highlighte
               >
                 @{thread.authorHandle || thread.authorDid}
               </span>
-              {" "}· {formatDate(thread.createdAt)}
+              {" "}· {formatDate(thread.createdAt, locale)}
             </span>
             <span className="ml-auto">{t("thread.comments", { count: thread.commentCount })}</span>
           </div>
