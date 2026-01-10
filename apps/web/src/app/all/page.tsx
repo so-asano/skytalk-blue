@@ -19,9 +19,9 @@ export default function AllThreadsPage() {
         if (res.ok) {
           const data = await res.json();
           // Resolve handles from DIDs
-          const dids = data.map((t: Thread) => t.authorDid);
+          const dids = data.threads.map((t: Thread) => t.authorDid);
           const handleMap = await getHandlesByDids(dids);
-          const withHandles = data.map((t: Thread) => ({
+          const withHandles = data.threads.map((t: Thread) => ({
             ...t,
             authorHandle: handleMap.get(t.authorDid) || t.authorDid,
           }));
