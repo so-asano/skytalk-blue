@@ -355,6 +355,37 @@ app.post("/api/threads/:id/comments", async (req, res) => {
   }
 });
 
+// Get single comment with thread info
+app.get("/api/comments/:id", async (req, res) => {
+  try {
+    const comment = await db
+      .select()
+      .from(comments)
+      .where(and(eq(comments.id, req.params.id), isNull(comments.deletedAt)))
+      .limit(1);
+
+    if (comment.length === 0) {
+      res.status(404).json({ error: "Comment not found" });
+      return;
+    }
+
+    // Get thread info
+    const thread = await db
+      .select()
+      .from(threads)
+      .where(eq(threads.id, comment[0].threadId))
+      .limit(1);
+
+    res.json({
+      comment: comment[0],
+      thread: thread.length > 0 ? thread[0] : null,
+    });
+  } catch (error) {
+    console.error("Error fetching comment:", error);
+    res.status(500).json({ error: "Failed to fetch comment" });
+  }
+});
+
 // Delete a comment (soft delete)
 app.delete("/api/comments/:id", async (req, res) => {
   try {
