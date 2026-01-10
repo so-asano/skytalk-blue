@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Menu, LogIn, LogOut, Loader2, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,8 @@ export function BurgerMenu({
   onLogout,
   t,
 }: BurgerMenuProps) {
+  const pathname = usePathname();
+  const router = useRouter();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginHandle, setLoginHandle] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
@@ -94,11 +97,18 @@ export function BurgerMenu({
         <DropdownMenuContent align="end" className="w-44 text-xs">
           {user && (
             <>
-              <DropdownMenuItem asChild>
-                <Link href="/notifications" className="flex items-center gap-2">
-                  <Bell className="w-4 h-4" />
-                  <span>{t("notifications.count").replace("{count}", String(notificationCount))}</span>
-                </Link>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (pathname === "/notifications") {
+                    window.location.reload();
+                  } else {
+                    router.push("/notifications");
+                  }
+                }}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Bell className="w-4 h-4" />
+                <span>{t("notifications.count").replace("{count}", String(notificationCount))}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
