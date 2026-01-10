@@ -14,7 +14,7 @@ SkyTalk.Blue は、[AT Protocol](https://atproto.com/) を基盤とした、自�
 
 - シンプルでクリーンなデザイン
 - GitHub Flavored Markdown が使用可能
-- ATProto サービスとして Bluesky からの独立性が高い
+- ATProto サービスとして高い相互運用性を持つ
 - データはあなたが所有し、ポータビリティがあり、あなたがコントロール可能
 
 ## 運営
@@ -35,7 +35,7 @@ Key features:
 
 - Simple and clean design
 - GitHub Flavored Markdown supported
-- High independence from Bluesky as an ATProto service
+- High interoperability as an ATProto service
 - Your data is owned by you, portable, and under your control
 
 ## Operated by
