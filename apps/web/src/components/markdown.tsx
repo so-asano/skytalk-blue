@@ -42,10 +42,11 @@ export function Markdown({ children, className }: MarkdownProps) {
           pre({ children }) {
             return <>{children}</>;
           },
-          code({ className, children, inline, ...props }) {
+          code({ className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || "");
+            const isBlock = Boolean(className) || String(children).includes("\n");
 
-            if (inline) {
+            if (!isBlock) {
               return (
                 <code className="bg-muted px-1.5 py-0.5 rounded text-sm" {...props}>
                   {children}
