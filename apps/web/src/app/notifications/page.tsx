@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { notFound } from "next/navigation";
-import Link from "next/link";
+import { notFound, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/markdown";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
+import { getHandlesByDids } from "@/lib/bsky";
 import { formatDate } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -27,7 +27,9 @@ interface Thread {
   title: string;
   text: string | null;
   authorDid: string;
+  authorHandle?: string;
   createdAt: string;
+  atUri: string;
 }
 
 interface Comment {
@@ -35,13 +37,16 @@ interface Comment {
   threadId: string;
   text: string;
   authorDid: string;
+  authorHandle?: string;
   createdAt: string;
+  atUri: string;
 }
 
 interface NotificationWithContent extends Notification {
   type: "thread" | "comment";
   thread?: Thread;
   comment?: Comment;
+  parentThread?: Thread; // For comments, the thread it belongs to
 }
 
 // Extract thread/comment info from AT URI
@@ -61,6 +66,7 @@ function parseAtUri(atUri: string): { type: "thread" | "comment"; tid: string } 
 export default function NotificationsPage() {
   const { t, locale } = useI18n();
   const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationWithContent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -98,19 +104,48 @@ export default function NotificationsPage() {
                   return { ...notification, type: "thread" as const, thread: threadData.thread };
                 }
               } catch {
-                // Ignore
+                // Thread may be deleted
               }
               return { ...notification, type: "thread" as const };
             } else {
-              // For comments, we need to find the thread first
-              // The comment tid can be used to find it in any thread's comments
-              // For now, just mark as comment type
+              // Fetch comment with thread info
+              try {
+                const commentRes = await fetch(`${API_URL}/api/comments/${parsed.tid}`);
+                if (commentRes.ok) {
+                  const commentData = await commentRes.json();
+                  return {
+                    ...notification,
+                    type: "comment" as const,
+                    comment: commentData.comment,
+                    parentThread: commentData.thread,
+                  };
+                }
+              } catch {
+                // Comment may be deleted
+              }
               return { ...notification, type: "comment" as const };
             }
           })
         );
 
-        setNotifications(withContent);
+        // Resolve handles for all DIDs
+        const allDids = withContent
+          .flatMap((n) => [n.thread?.authorDid, n.comment?.authorDid])
+          .filter(Boolean) as string[];
+        const handleMap = await getHandlesByDids(allDids);
+
+        // Add handles to notifications
+        const withHandles = withContent.map((n) => ({
+          ...n,
+          thread: n.thread
+            ? { ...n.thread, authorHandle: handleMap.get(n.thread.authorDid) || n.thread.authorDid }
+            : undefined,
+          comment: n.comment
+            ? { ...n.comment, authorHandle: handleMap.get(n.comment.authorDid) || n.comment.authorDid }
+            : undefined,
+        }));
+
+        setNotifications(withHandles);
 
         // Mark all as read
         await fetch(`${API_URL}/api/notifications/${user.did}/read-all`, {
@@ -153,46 +188,100 @@ export default function NotificationsPage() {
         ) : (
           notifications.map((notification) => {
             const isUnread = !notification.markedAsReadAt;
-            const parsed = parseAtUri(notification.atUri);
 
-            return (
-              <Card
-                key={notification.id}
-                className={isUnread ? "border-primary/50 bg-primary/5" : ""}
-              >
-                <CardContent className="py-4">
-                  <div className="text-xs text-muted-foreground mb-2">
-                    {notification.type === "thread"
-                      ? t("notifications.mentionedInThread")
-                      : t("notifications.mentionedInComment")}
-                    {" · "}
-                    {formatDate(notification.createdAt, locale)}
-                  </div>
-
-                  {notification.thread && (
-                    <Link
-                      href={`/${notification.thread.channelId}/${notification.thread.id}`}
-                      className="block hover:opacity-80"
-                    >
-                      <h3 className="font-bold mb-2">{notification.thread.title}</h3>
-                      {notification.thread.text && (
-                        <div className="prose prose-sm max-w-none text-muted-foreground">
-                          <Markdown>{notification.thread.text}</Markdown>
-                        </div>
-                      )}
-                    </Link>
-                  )}
-
-                  {!notification.thread && parsed && (
+            // Thread notification - same format as thread page
+            if (notification.type === "thread" && notification.thread) {
+              const thread = notification.thread;
+              return (
+                <Card
+                  key={notification.id}
+                  className={`cursor-pointer hover:bg-muted/50 transition-colors ${isUnread ? "border-primary/50 bg-primary/5" : ""}`}
+                  onClick={() => router.push(`/${thread.channelId}/${thread.id}`)}
+                >
+                  <CardContent className="py-5 px-5">
+                    <h2 className="text-xl font-bold leading-relaxed mb-2">
+                      {thread.title}
+                    </h2>
+                    <div className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                      <a
+                        href={`https://bsky.app/profile/${thread.authorDid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        @{thread.authorHandle || thread.authorDid}
+                      </a>
+                      <span>· {formatDate(thread.createdAt, locale)}</span>
+                    </div>
+                    {thread.text && (
+                      <div className="prose prose-sm max-w-none mb-4">
+                        <Markdown>{thread.text}</Markdown>
+                      </div>
+                    )}
                     <a
-                      href={`https://pdsls.dev/${notification.atUri}`}
+                      href={`https://pdsls.dev/${thread.atUri}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block text-xs text-muted-foreground/60 font-mono truncate hover:underline"
+                      className="block text-[10px] text-muted-foreground/40 font-mono truncate hover:underline"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      {notification.atUri}
+                      {thread.atUri}
                     </a>
-                  )}
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            // Comment notification - same format as thread page comments
+            if (notification.type === "comment" && notification.comment && notification.parentThread) {
+              const comment = notification.comment;
+              const parentThread = notification.parentThread;
+              return (
+                <Card
+                  key={notification.id}
+                  className={`cursor-pointer hover:bg-muted/50 transition-colors ${isUnread ? "border-primary/50 bg-primary/5" : ""}`}
+                  onClick={() => router.push(`/${parentThread.channelId}/${parentThread.id}#comment-${comment.id}`)}
+                >
+                  <CardContent className="py-5 px-5">
+                    <div className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                      <a
+                        href={`https://bsky.app/profile/${comment.authorDid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        @{comment.authorHandle || comment.authorDid}
+                      </a>
+                      <span>· {formatDate(comment.createdAt, locale)}</span>
+                    </div>
+                    <div className="prose prose-sm max-w-none">
+                      <Markdown>{comment.text}</Markdown>
+                    </div>
+                    <a
+                      href={`https://pdsls.dev/${comment.atUri}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block mt-4 text-[10px] text-muted-foreground/40 font-mono truncate hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {comment.atUri}
+                    </a>
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            // Fallback for deleted content
+            return (
+              <Card key={notification.id} className="opacity-50">
+                <CardContent className="py-5 px-5">
+                  <p className="text-muted-foreground">
+                    {notification.type === "thread"
+                      ? t("notifications.threadDeleted")
+                      : t("notifications.commentDeleted")}
+                  </p>
                 </CardContent>
               </Card>
             );

@@ -428,6 +428,7 @@ export default function ThreadPage() {
                 {comments.map((c, index) => (
                   <div
                     key={c.id}
+                    id={`comment-${c.id}`}
                     className={
                       highlightedIds.has(c.id)
                         ? "bg-primary/10 -mx-3 px-3 py-2 rounded-lg transition-colors duration-1000"

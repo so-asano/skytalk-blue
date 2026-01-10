@@ -105,7 +105,9 @@
     "count": "通知 {count} 件",
     "empty": "通知はありません",
     "mentionedInThread": "スレッドでメンションされました",
-    "mentionedInComment": "コメントでメンションされました"
+    "mentionedInComment": "コメントでメンションされました",
+    "threadDeleted": "スレッドは削除されました",
+    "commentDeleted": "コメントは削除されました"
   },
   "error": {
     "notFound": "ページが見つかりません",

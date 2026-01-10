@@ -105,7 +105,9 @@
     "count": "{count} notifications",
     "empty": "No notifications",
     "mentionedInThread": "You were mentioned in a thread",
-    "mentionedInComment": "You were mentioned in a comment"
+    "mentionedInComment": "You were mentioned in a comment",
+    "threadDeleted": "This thread has been deleted",
+    "commentDeleted": "This comment has been deleted"
   },
   "error": {
     "notFound": "Page Not Found",
