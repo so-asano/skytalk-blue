@@ -1,94 +1,21 @@
 import "dotenv/config";
-import express, { Request, Response, NextFunction } from "express";
+import express from "express";
 import cors from "cors";
-import crypto from "crypto";
 import { db } from "./db/index.js";
 import { channels, threads, comments, notifications } from "./db/schema.js";
 import { seedChannels } from "./db/seed.js";
-import { eq, desc, isNull, and, gt, asc } from "drizzle-orm";
+import { eq, desc, isNull, and, gt } from "drizzle-orm";
 import { jetstreamService } from "./services/jetstream.js";
+import { createSiteAuthMiddleware, requireUserAuth, AuthenticatedRequest } from "./auth.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const API_SECRET = process.env.API_SECRET || "";
 const TOKEN_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 
+const requireSiteAuth = createSiteAuthMiddleware(API_SECRET, TOKEN_EXPIRY_MS);
+
 const BSKY_PUBLIC_API = "https://public.api.bsky.app/xrpc";
-
-// HMAC verification
-function verifyHmac(timestamp: string, signature: string): boolean {
-  const expected = crypto
-    .createHmac("sha256", API_SECRET)
-    .update(timestamp)
-    .digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
-}
-
-// Decode JWT without verification (to extract DID from sub claim)
-function decodeJwt(token: string): { sub?: string } | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-// Site-level protection middleware (HMAC + timestamp)
-function requireSiteAuth(req: Request, res: Response, next: NextFunction) {
-  const timestamp = req.headers["x-timestamp"] as string;
-  const signature = req.headers["x-signature"] as string;
-
-  if (!timestamp || !signature) {
-    res.status(403).json({ error: "Missing signature" });
-    return;
-  }
-
-  // Check timestamp is within 5 minutes
-  if (Date.now() - parseInt(timestamp) > TOKEN_EXPIRY_MS) {
-    res.status(403).json({ error: "Request expired" });
-    return;
-  }
-
-  // Verify HMAC
-  try {
-    if (!verifyHmac(timestamp, signature)) {
-      res.status(403).json({ error: "Invalid signature" });
-      return;
-    }
-  } catch {
-    res.status(403).json({ error: "Invalid signature" });
-    return;
-  }
-
-  next();
-}
-
-// User-level protection middleware (requires Bearer token)
-interface AuthenticatedRequest extends Request {
-  authenticatedDid?: string;
-}
-
-function requireUserAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Missing authorization header" });
-    return;
-  }
-
-  const token = authHeader.slice(7);
-  const jwtPayload = decodeJwt(token);
-
-  if (!jwtPayload?.sub) {
-    res.status(401).json({ error: "Invalid token" });
-    return;
-  }
-
-  req.authenticatedDid = jwtPayload.sub;
-  next();
-}
 
 // Extract @mentions from text (e.g., @user.bsky.social)
 function extractMentions(text: string | null | undefined): string[] {
