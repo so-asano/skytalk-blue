@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { getHandlesByDids } from "@/lib/bsky";
+import { getHandlesByDids, getDidsByHandles, extractMentions, replaceMentionsWithMap } from "@/lib/bsky";
 import { formatDate } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -175,17 +175,34 @@ export default function ThreadPage() {
           ...data.comments.map((c: Comment) => c.authorDid),
         ];
         const handleMap = await getHandlesByDids(allDids);
+
+        // Collect all mentions from thread and comments, then resolve in one batch
+        const allTexts = [
+          data.thread.text,
+          ...data.comments.map((c: Comment) => c.text),
+        ].filter(Boolean) as string[];
+        const allMentions = allTexts.flatMap(extractMentions);
+        const mentionDidMap = allMentions.length > 0
+          ? await getDidsByHandles(allMentions)
+          : new Map<string, string>();
+
+        // Replace mentions using the batched map
+        const resolvedThreadText = data.thread.text
+          ? replaceMentionsWithMap(data.thread.text, mentionDidMap)
+          : null;
+        const resolvedComments = data.comments.map((c: Comment) => ({
+          ...c,
+          authorHandle: handleMap.get(c.authorDid) || c.authorDid,
+          text: replaceMentionsWithMap(c.text, mentionDidMap),
+        }));
+
         setThread({
           ...data.thread,
+          text: resolvedThreadText,
           authorHandle:
             handleMap.get(data.thread.authorDid) || data.thread.authorDid,
         });
-        setComments(
-          data.comments.map((c: Comment) => ({
-            ...c,
-            authorHandle: handleMap.get(c.authorDid) || c.authorDid,
-          }))
-        );
+        setComments(resolvedComments);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -245,10 +262,18 @@ export default function ThreadPage() {
         const data = await threadRes.json();
         const dids = data.comments.map((c: Comment) => c.authorDid);
         const handleMap = await getHandlesByDids(dids);
+
+        // Batch resolve mentions
+        const allMentions = data.comments.flatMap((c: Comment) => extractMentions(c.text));
+        const mentionDidMap = allMentions.length > 0
+          ? await getDidsByHandles(allMentions)
+          : new Map<string, string>();
+
         setComments(
           data.comments.map((c: Comment) => ({
             ...c,
             authorHandle: handleMap.get(c.authorDid) || c.authorDid,
+            text: replaceMentionsWithMap(c.text, mentionDidMap),
           }))
         );
       }
