@@ -173,7 +173,7 @@ export default function ChannelPage() {
   }, []);
 
   const handleCreateThread = async () => {
-    if (!user || !agent || !newThreadTitle.trim() || creating) return;
+    if (!user || !agent || !newThreadTitle.trim() || !newThreadContent.trim() || creating) return;
 
     setCreating(true);
     try {
@@ -299,7 +299,7 @@ export default function ChannelPage() {
                 </div>
               )}
               <div className="flex">
-                <Button onClick={handleCreateThread} disabled={creating || !newThreadTitle.trim()}>
+                <Button onClick={handleCreateThread} disabled={creating || !newThreadTitle.trim() || !newThreadContent.trim()}>
                   {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.create")}
                 </Button>
               </div>
