@@ -33,7 +33,8 @@
     "callbackSuccess": "ログインしました",
     "callbackRedirecting": "リダイレクト中...",
     "callbackError": "認証エラー",
-    "backToHome": "トップに戻る"
+    "backToHome": "トップに戻る",
+    "loginRequired": "ログインが必要です"
   },
   "channel": {
     "list": "チャンネル一覧",
@@ -98,6 +99,13 @@
   "footer": {
     "terms": "利用規約",
     "privacy": "プライバシーポリシー"
+  },
+  "notifications": {
+    "title": "通知",
+    "count": "通知 {count}件",
+    "empty": "通知はありません",
+    "mentionedInThread": "スレッドでメンションされました",
+    "mentionedInComment": "コメントでメンションされました"
   },
   "error": {
     "notFound": "ページが見つかりません",

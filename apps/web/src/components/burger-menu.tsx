@@ -1,6 +1,7 @@
 "use client";
 
-import { Menu, LogIn, LogOut, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Menu, LogIn, LogOut, Loader2, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,6 +31,7 @@ interface BurgerMenuProps {
   user: User | null;
   locale: "ja" | "en";
   theme: "light" | "dark" | "system";
+  notificationCount?: number;
   onLocaleChange: (locale: "ja" | "en") => void;
   onThemeChange: (theme: "light" | "dark" | "system") => void;
   onLogin: (handle: string, locale?: "ja" | "en") => Promise<void>;
@@ -41,6 +43,7 @@ export function BurgerMenu({
   user,
   locale,
   theme,
+  notificationCount = 0,
   onLocaleChange,
   onThemeChange,
   onLogin,
@@ -81,11 +84,25 @@ export function BurgerMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="relative">
             <Menu className="w-5 h-5" />
+            {notificationCount > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44 text-xs">
+          {user && (
+            <>
+              <DropdownMenuItem asChild>
+                <Link href="/notifications" className="flex items-center gap-2">
+                  <Bell className="w-4 h-4" />
+                  <span>{t("notifications.count").replace("{count}", String(notificationCount))}</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuRadioGroup value={locale} onValueChange={(value) => onLocaleChange(value as "ja" | "en")}>
             <DropdownMenuRadioItem value="ja" onSelect={(e) => e.preventDefault()}>日本語</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="en" onSelect={(e) => e.preventDefault()}>English</DropdownMenuRadioItem>

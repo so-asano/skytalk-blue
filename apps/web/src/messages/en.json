@@ -33,7 +33,8 @@
     "callbackSuccess": "Logged in",
     "callbackRedirecting": "Redirecting...",
     "callbackError": "Authentication Error",
-    "backToHome": "Back to Home"
+    "backToHome": "Back to Home",
+    "loginRequired": "Login required"
   },
   "channel": {
     "list": "Channels",
@@ -98,6 +99,13 @@
   "footer": {
     "terms": "Terms of Use",
     "privacy": "Privacy Policy"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "count": "{count} notifications",
+    "empty": "No notifications",
+    "mentionedInThread": "You were mentioned in a thread",
+    "mentionedInComment": "You were mentioned in a comment"
   },
   "error": {
     "notFound": "Page Not Found",
