@@ -24,17 +24,38 @@ export function Markdown({ children, className }: MarkdownProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          code({ className, children, ...props }) {
-            const match = /language-(\w+)/.exec(className || "");
-            const inline = !match;
-            return inline ? (
-              <code className="bg-muted px-1.5 py-0.5 rounded text-sm" {...props}>
+          a({ href, children, ...props }) {
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                {...props}
+              >
                 {children}
-              </code>
-            ) : (
+              </a>
+            );
+          },
+          pre({ children }) {
+            return <>{children}</>;
+          },
+          code({ className, children, node, ...props }) {
+            const match = /language-(\w+)/.exec(className || "");
+            const isBlock = node?.position?.start.line !== node?.position?.end.line ||
+                           String(children).includes("\n");
+
+            if (!isBlock) {
+              return (
+                <code className="bg-muted px-1.5 py-0.5 rounded text-sm" {...props}>
+                  {children}
+                </code>
+              );
+            }
+
+            return (
               <SyntaxHighlighter
                 style={oneDark}
-                language={match[1]}
+                language={match?.[1] || "text"}
                 PreTag="div"
                 customStyle={{ margin: 0, borderRadius: "0.375rem" }}
               >
