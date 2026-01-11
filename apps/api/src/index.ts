@@ -4,7 +4,7 @@ import cors from "cors";
 import { db } from "./db/index.js";
 import { channels, threads, comments, notifications } from "./db/schema.js";
 import { seedChannels } from "./db/seed.js";
-import { eq, desc, isNull, and, gt } from "drizzle-orm";
+import { eq, desc, isNull, and, gt, count } from "drizzle-orm";
 import { jetstreamService } from "./services/jetstream.js";
 import { createSiteAuthMiddleware, requireUserAuth, AuthenticatedRequest } from "./auth.js";
 
@@ -16,6 +16,19 @@ const TOKEN_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const requireSiteAuth = createSiteAuthMiddleware(API_SECRET, TOKEN_EXPIRY_MS);
 
 const BSKY_PUBLIC_API = "https://public.api.bsky.app/xrpc";
+
+// Update thread commentCount by counting actual comments
+async function updateThreadCommentCount(threadId: string) {
+  const result = await db
+    .select({ count: count() })
+    .from(comments)
+    .where(and(eq(comments.threadId, threadId), isNull(comments.deletedAt)));
+
+  await db
+    .update(threads)
+    .set({ commentCount: result[0].count, updatedAt: new Date() })
+    .where(eq(threads.id, threadId));
+}
 
 // Extract @mentions from text (e.g., @user.bsky.social)
 function extractMentions(text: string | null | undefined): string[] {
@@ -335,10 +348,7 @@ app.post("/api/threads/:id/comments", requireSiteAuth, requireUserAuth, async (r
       .returning();
 
     // Update thread commentCount
-    await db
-      .update(threads)
-      .set({ commentCount: thread[0].commentCount + 1, updatedAt: new Date() })
-      .where(eq(threads.id, req.params.id));
+    await updateThreadCommentCount(req.params.id);
 
     // Create notifications for mentioned users
     const allMentionedDids = await extractMentionedDids(text);
@@ -412,19 +422,8 @@ app.delete("/api/comments/:id", requireSiteAuth, requireUserAuth, async (req: Au
       .set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(comments.id, req.params.id));
 
-    // Decrement thread comment count
-    const thread = await db
-      .select()
-      .from(threads)
-      .where(eq(threads.id, comment[0].threadId))
-      .limit(1);
-
-    if (thread.length > 0 && thread[0].commentCount > 0) {
-      await db
-        .update(threads)
-        .set({ commentCount: thread[0].commentCount - 1, updatedAt: new Date() })
-        .where(eq(threads.id, comment[0].threadId));
-    }
+    // Update thread comment count
+    await updateThreadCommentCount(comment[0].threadId);
 
     res.json({ success: true });
   } catch (error) {

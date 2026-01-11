@@ -1,7 +1,7 @@
 import { Jetstream, CommitCreateEvent, CommitUpdateEvent, CommitDeleteEvent, JetstreamOptions } from "@skyware/jetstream";
 import { db } from "../db/index.js";
 import { comments, threads, jetstreamCursors, threadEvents, commentEvents } from "../db/schema.js";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNull, count } from "drizzle-orm";
 import {
   LEXICONS,
   validateThreadRecord,
@@ -272,6 +272,25 @@ export class JetstreamService {
 
       // Handle comment sync
       if (action === "CREATE" && record) {
+        // Find thread by atUri and update comment count
+        const thread = await db
+          .select()
+          .from(threads)
+          .where(eq(threads.atUri, record.threadUri))
+          .limit(1);
+
+        if (thread.length > 0) {
+          const threadId = thread[0].id;
+          const result = await db
+            .select({ count: count() })
+            .from(comments)
+            .where(and(eq(comments.threadId, threadId), isNull(comments.deletedAt)));
+
+          await db
+            .update(threads)
+            .set({ commentCount: result[0].count, updatedAt: new Date() })
+            .where(eq(threads.id, threadId));
+        }
         console.log(`Comment CREATE event for ${atUri} - threadUri: ${record.threadUri}`);
       } else if (action === "DELETE") {
         // Get comment to find threadId
@@ -282,25 +301,24 @@ export class JetstreamService {
           .limit(1);
 
         if (comment.length > 0) {
+          const threadId = comment[0].threadId;
+
           // Mark comment as deleted
           await db
             .update(comments)
             .set({ deletedAt: new Date(), updatedAt: new Date() })
             .where(eq(comments.atUri, atUri));
 
-          // Decrement thread commentCount
-          const thread = await db
-            .select()
-            .from(threads)
-            .where(eq(threads.id, comment[0].threadId))
-            .limit(1);
+          // Update thread commentCount by counting actual comments
+          const result = await db
+            .select({ count: count() })
+            .from(comments)
+            .where(and(eq(comments.threadId, threadId), isNull(comments.deletedAt)));
 
-          if (thread.length > 0 && thread[0].commentCount > 0) {
-            await db
-              .update(threads)
-              .set({ commentCount: thread[0].commentCount - 1, updatedAt: new Date() })
-              .where(eq(threads.id, comment[0].threadId));
-          }
+          await db
+            .update(threads)
+            .set({ commentCount: result[0].count, updatedAt: new Date() })
+            .where(eq(threads.id, threadId));
         }
         console.log(`Comment DELETE event for ${atUri}`);
       }
