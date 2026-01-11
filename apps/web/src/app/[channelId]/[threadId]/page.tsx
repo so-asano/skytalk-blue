@@ -342,11 +342,12 @@ export default function ThreadPage() {
   };
 
   const handleReply = (comment: Comment) => {
+    const handle = comment.authorHandle || comment.authorDid;
     const quoted = comment.text
       .split("\n")
       .map((line) => `> ${line}`)
       .join("\n");
-    setNewComment(quoted + "\n\n");
+    setNewComment(`@${handle}\n\n${quoted}\n\n`);
     setCommentTab("write");
     setTimeout(() => {
       textareaRef.current?.focus();
