@@ -1,0 +1,33 @@
+{
+  "lexicon": 1,
+  "id": "blue.skytalk.talk.reaction",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A reaction (emoji) to a thread or comment",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["subject", "emoji", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Reference to the thread or comment being reacted to"
+          },
+          "emoji": {
+            "type": "string",
+            "maxLength": 32,
+            "maxGraphemes": 1,
+            "description": "The emoji used for the reaction"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Timestamp of reaction creation"
+          }
+        }
+      }
+    }
+  }
+}

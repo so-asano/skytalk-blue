@@ -3,6 +3,7 @@ import { z } from "zod";
 export const LEXICONS = {
   THREAD: "blue.skytalk.talk.thread",
   COMMENT: "blue.skytalk.talk.comment",
+  REACTION: "blue.skytalk.talk.reaction",
 } as const;
 
 export type LexiconType = (typeof LEXICONS)[keyof typeof LEXICONS];
@@ -57,4 +58,35 @@ export function validateThreadRecord(data: unknown) {
  */
 export function validateCommentRecord(data: unknown) {
   return CommentRecordSchema.safeParse(data);
+}
+
+/**
+ * Zod schema for com.atproto.repo.strongRef
+ */
+export const StrongRefSchema = z.object({
+  uri: z.string().refine((uri) => uri.startsWith("at://"), {
+    message: "Must be a valid AT-URI",
+  }),
+  cid: z.string(),
+});
+
+/**
+ * Zod schema for blue.skytalk.talk.reaction
+ */
+export const ReactionRecordSchema = z.object({
+  subject: StrongRefSchema.describe("Reference to the thread or comment being reacted to"),
+  emoji: z
+    .string()
+    .max(32)
+    .describe("The emoji used for the reaction"),
+  createdAt: z.string().datetime().describe("Timestamp of reaction creation"),
+});
+
+export type ReactionRecord = z.infer<typeof ReactionRecordSchema>;
+
+/**
+ * Validate reaction record
+ */
+export function validateReactionRecord(data: unknown) {
+  return ReactionRecordSchema.safeParse(data);
 }

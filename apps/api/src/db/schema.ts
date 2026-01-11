@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, bigint, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, bigint, serial, jsonb } from "drizzle-orm/pg-core";
 
 export const channels = pgTable("channels", {
   id: text("id").primaryKey(),
@@ -18,6 +18,7 @@ export const threads = pgTable("threads", {
   text: text("text"),
   authorDid: text("author_did").notNull(),
   commentCount: integer("comment_count").default(0).notNull(),
+  reactions: jsonb("reactions").$type<Record<string, string[]>>().default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
@@ -31,6 +32,7 @@ export const comments = pgTable("comments", {
   atUri: text("at_uri").notNull(),
   authorDid: text("author_did").notNull(),
   text: text("text").notNull(),
+  reactions: jsonb("reactions").$type<Record<string, string[]>>().default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
@@ -70,6 +72,19 @@ export const commentEvents = pgTable("comment_events", {
   action: text("action").notNull(), // CREATE, UPDATE, DELETE
   cursor: bigint("cursor", { mode: "bigint" }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Reactions to threads and comments
+export const reactions = pgTable("reactions", {
+  id: text("id").primaryKey(), // TID
+  atUri: text("at_uri").notNull(),
+  subjectUri: text("subject_uri").notNull(), // AT URI of thread/comment
+  subjectCid: text("subject_cid").notNull(), // CID of thread/comment
+  authorDid: text("author_did").notNull(),
+  emoji: text("emoji").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 // Notifications for mentions

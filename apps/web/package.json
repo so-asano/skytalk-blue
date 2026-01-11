@@ -15,6 +15,9 @@
   "dependencies": {
     "@atproto/api": "^0.18.12",
     "@atproto/oauth-client-browser": "^0.3.39",
+    "@emoji-mart/data": "^1.2.1",
+    "@emoji-mart/react": "^1.1.1",
+    "@floating-ui/react": "^0.27.16",
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
     "@fortawesome/free-solid-svg-icons": "^7.1.0",
     "@fortawesome/react-fontawesome": "^3.1.1",
