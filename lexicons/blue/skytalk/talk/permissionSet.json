@@ -1,4 +1,5 @@
 {
+  "lexicon": 1,
   "id": "blue.skytalk.permissionSet",
   "defs": {
     "main": {
@@ -21,7 +22,5 @@
         }
       ]
     }
-  },
-  "$type": "com.atproto.lexicon.schema",
-  "lexicon": 1
+  }
 }

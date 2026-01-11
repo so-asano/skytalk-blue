@@ -117,5 +117,8 @@
     "errorDescription": "An unexpected error occurred.",
     "backToHome": "Back to Home",
     "tryAgain": "Try again"
+  },
+  "reaction": {
+    "notAvailable": "Reactions are not available for this post"
   }
 }

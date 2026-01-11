@@ -117,5 +117,8 @@
     "errorDescription": "予期しないエラーが発生しました。",
     "backToHome": "トップに戻る",
     "tryAgain": "再試行"
+  },
+  "reaction": {
+    "notAvailable": "この投稿にはリアクションできません"
   }
 }

@@ -606,6 +606,8 @@ export default function ThreadPage() {
                       const cid = thread.cid || await getCid(thread.atUri);
                       if (cid) {
                         handleReaction(thread.atUri, cid, emoji, "add");
+                      } else {
+                        toast.error(t("reaction.notAvailable"));
                       }
                     }}
                   />
@@ -632,6 +634,8 @@ export default function ThreadPage() {
                   const cid = thread.cid || await getCid(thread.atUri);
                   if (cid) {
                     handleReaction(thread.atUri, cid, emoji, action);
+                  } else {
+                    toast.error(t("reaction.notAvailable"));
                   }
                 }}
               />
@@ -687,6 +691,8 @@ export default function ThreadPage() {
                               const cid = c.cid || await getCid(c.atUri);
                               if (cid) {
                                 handleReaction(c.atUri, cid, emoji, "add");
+                              } else {
+                                toast.error(t("reaction.notAvailable"));
                               }
                             }}
                           />
@@ -712,6 +718,8 @@ export default function ThreadPage() {
                         const cid = c.cid || await getCid(c.atUri);
                         if (cid) {
                           handleReaction(c.atUri, cid, emoji, action);
+                        } else {
+                          toast.error(t("reaction.notAvailable"));
                         }
                       }}
                     />

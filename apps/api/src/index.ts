@@ -2,9 +2,9 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { db } from "./db/index.js";
-import { channels, threads, comments, notifications, reactions } from "./db/schema.js";
+import { channels, threads, comments, notifications, reactions, threadEvents, commentEvents } from "./db/schema.js";
 import { seedChannels } from "./db/seed.js";
-import { eq, desc, isNull, and, gt, count } from "drizzle-orm";
+import { eq, desc, isNull, and, gt, count, inArray } from "drizzle-orm";
 import { jetstreamService } from "./services/jetstream.js";
 import { createSiteAuthMiddleware, requireUserAuth, AuthenticatedRequest } from "./auth.js";
 
@@ -278,13 +278,38 @@ app.get("/api/threads/:id", async (req, res) => {
       return;
     }
 
+    // Get CID from threadEvents (latest CREATE event)
+    const threadEvent = await db
+      .select({ cid: threadEvents.cid })
+      .from(threadEvents)
+      .where(and(eq(threadEvents.atUri, thread[0].atUri), eq(threadEvents.action, "CREATE")))
+      .orderBy(desc(threadEvents.createdAt))
+      .limit(1);
+
     const threadComments = await db
       .select()
       .from(comments)
       .where(and(eq(comments.threadId, req.params.id), isNull(comments.deletedAt)))
       .orderBy(comments.createdAt);
 
-    res.json({ thread: thread[0], comments: threadComments });
+    // Get CIDs for comments from commentEvents
+    const commentUris = threadComments.map(c => c.atUri);
+    const commentCids = commentUris.length > 0
+      ? await db
+          .select({ atUri: commentEvents.atUri, cid: commentEvents.cid })
+          .from(commentEvents)
+          .where(and(
+            inArray(commentEvents.atUri, commentUris),
+            eq(commentEvents.action, "CREATE")
+          ))
+      : [];
+
+    const cidMap = new Map(commentCids.map(c => [c.atUri, c.cid]));
+
+    res.json({
+      thread: { ...thread[0], cid: threadEvent[0]?.cid || null },
+      comments: threadComments.map(c => ({ ...c, cid: cidMap.get(c.atUri) || null })),
+    });
   } catch (error) {
     console.error("Error fetching thread:", error);
     res.status(500).json({ error: "Failed to fetch thread" });
