@@ -190,3 +190,31 @@ export async function resolveHandles<T extends { authorDid: string; authorHandle
     authorHandle: handleMap.get(item.authorDid) || item.authorHandle || item.authorDid,
   }));
 }
+
+export interface ActorSuggestion {
+  handle: string;
+}
+
+export async function searchActorsTypeahead(query: string): Promise<ActorSuggestion[]> {
+  if (!query) {
+    return [];
+  }
+
+  try {
+    const res = await fetch(
+      `${BSKY_PUBLIC_API}/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(query)}&limit=5`
+    );
+    if (!res.ok) {
+      return [];
+    }
+
+    const data = await res.json();
+    return (data.actors || [])
+      .slice(0, 5)
+      .map((actor: { handle: string }) => ({
+        handle: actor.handle,
+      }));
+  } catch {
+    return [];
+  }
+}

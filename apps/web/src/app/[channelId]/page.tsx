@@ -7,7 +7,7 @@ import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { Textarea } from "@/components/ui/textarea";
+import { MentionTextarea } from "@/components/mention-textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -44,6 +44,8 @@ export default function ChannelPage() {
   const [accordionValue, setAccordionValue] = useState<string>("");
   const [newThreadTitle, setNewThreadTitle] = useState("");
   const [newThreadContent, setNewThreadContent] = useState("");
+  const [newThreadContentPlain, setNewThreadContentPlain] = useState("");
+  const [editorHeight, setEditorHeight] = useState(90);
   const [contentTab, setContentTab] = useState<"write" | "preview">("write");
   const [creating, setCreating] = useState(false);
   const toastIdRef = useRef<string | number | null>(null);
@@ -220,6 +222,7 @@ export default function ChannelPage() {
 
       setNewThreadTitle("");
       setNewThreadContent("");
+      setNewThreadContentPlain("");
       setAccordionValue("");
     } catch (error) {
       console.error("Error creating thread:", error);
@@ -279,18 +282,22 @@ export default function ChannelPage() {
                 </button>
               </div>
               {contentTab === "write" ? (
-                <Textarea
+                <MentionTextarea
                   value={newThreadContent}
-                  onChange={(e) => setNewThreadContent(e.target.value)}
-                  className="h-[90px] resize-none"
+                  onChange={setNewThreadContent}
+                  onChangePlainText={setNewThreadContentPlain}
+                  onHeightChange={setEditorHeight}
                   maxLength={4000}
                   placeholder={t("post.contentPlaceholder")}
                 />
               ) : (
-                <div className="h-[90px] border rounded-md px-3 py-2 overflow-y-auto text-sm">
-                  {newThreadContent.trim() ? (
+                <div
+                  className="border rounded-md px-3 py-2 overflow-y-auto text-sm"
+                  style={{ minHeight: editorHeight }}
+                >
+                  {newThreadContentPlain.trim() ? (
                     <div className="prose prose-sm max-w-none">
-                      <Markdown>{newThreadContent}</Markdown>
+                      <Markdown>{newThreadContentPlain}</Markdown>
                     </div>
                   ) : (
                     <p className="text-muted-foreground">{t("post.nothingToPreview")}</p>
@@ -298,7 +305,7 @@ export default function ChannelPage() {
                 </div>
               )}
               <div className="flex">
-                <Button onClick={handleCreateThread} disabled={creating || !newThreadTitle.trim() || !newThreadContent.trim()}>
+                <Button onClick={handleCreateThread} disabled={creating || !newThreadTitle.trim() || !newThreadContentPlain.trim()}>
                   {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.create")}
                 </Button>
               </div>

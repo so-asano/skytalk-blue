@@ -39,7 +39,7 @@ export function ThreadCard({ thread, channelName, showChannel = true, highlighte
               </span>
             </div>
           )}
-          <h3 className="font-semibold text-base leading-relaxed">{thread.title}</h3>
+          <h3 className="font-semibold text-base truncate">{thread.title}</h3>
           {thread.text && (
             <p className="text-sm text-muted-foreground truncate mt-1">{thread.text}</p>
           )}
