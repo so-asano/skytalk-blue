@@ -10,7 +10,8 @@
     "loading": "Loading...",
     "language": "Language",
     "theme": "Theme",
-    "menu": "Menu"
+    "menu": "Menu",
+    "noResults": "No results"
   },
   "theme": {
     "light": "Light",

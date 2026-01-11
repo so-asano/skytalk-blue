@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { Textarea } from "@/components/ui/textarea";
+import { MentionTextarea } from "@/components/mention-textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -67,6 +67,8 @@ export default function ThreadPage() {
   const [pendingComments, setPendingComments] = useState<Comment[]>([]);
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
   const [newComment, setNewComment] = useState("");
+  const [newCommentPlain, setNewCommentPlain] = useState("");
+  const [commentEditorHeight, setCommentEditorHeight] = useState(90);
   const [commentTab, setCommentTab] = useState<"write" | "preview">("write");
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginHandle, setLoginHandle] = useState("");
@@ -278,6 +280,7 @@ export default function ThreadPage() {
       }
 
       setNewComment("");
+      setNewCommentPlain("");
     } catch (error) {
       console.error("Error posting comment:", error);
     } finally {
@@ -347,7 +350,9 @@ export default function ThreadPage() {
       .split("\n")
       .map((line) => `> ${line}`)
       .join("\n");
-    setNewComment(`@${handle}\n\n${quoted}\n\n`);
+    const replyText = `@${handle}\n\n${quoted}\n\n`;
+    setNewComment(replyText);
+    setNewCommentPlain(replyText);
     setCommentTab("write");
     setTimeout(() => {
       textareaRef.current?.focus();
@@ -383,7 +388,7 @@ export default function ThreadPage() {
         <div className="flex flex-col gap-4">
           <Card>
             <CardContent className="py-5 px-5">
-              <h2 className="text-xl font-bold leading-relaxed mb-2">
+              <h2 className="text-xl font-bold mb-2 truncate">
                 {thread.title}
               </h2>
               <div className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
@@ -509,25 +514,22 @@ export default function ThreadPage() {
                   </button>
                 </div>
                 {commentTab === "write" ? (
-                  <Textarea
-                    ref={textareaRef}
+                  <MentionTextarea
                     value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                        e.preventDefault();
-                        handlePostComment();
-                      }
-                    }}
-                    className="h-[90px] resize-none"
+                    onChange={setNewComment}
+                    onChangePlainText={setNewCommentPlain}
+                    onHeightChange={setCommentEditorHeight}
                     maxLength={4000}
                     placeholder={t("post.contentPlaceholder")}
                   />
                 ) : (
-                  <div className="h-[90px] border rounded-md px-3 py-2 overflow-y-auto text-sm">
-                    {newComment.trim() ? (
+                  <div
+                    className="border rounded-md px-3 py-2 overflow-y-auto text-sm"
+                    style={{ minHeight: commentEditorHeight }}
+                  >
+                    {newCommentPlain.trim() ? (
                       <div className="prose prose-sm max-w-none">
-                        <Markdown>{newComment}</Markdown>
+                        <Markdown>{newCommentPlain}</Markdown>
                       </div>
                     ) : (
                       <p className="text-muted-foreground">
@@ -539,7 +541,7 @@ export default function ThreadPage() {
                 <div className="flex justify-start">
                   <Button
                     onClick={handlePostComment}
-                    disabled={posting || !newComment.trim()}
+                    disabled={posting || !newCommentPlain.trim()}
                   >
                     {posting ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
