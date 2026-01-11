@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { db } from "./db/index.js";
-import { channels, threads, comments, notifications } from "./db/schema.js";
+import { channels, threads, comments, notifications, reactions } from "./db/schema.js";
 import { seedChannels } from "./db/seed.js";
 import { eq, desc, isNull, and, gt, count } from "drizzle-orm";
 import { jetstreamService } from "./services/jetstream.js";
@@ -16,6 +16,71 @@ const TOKEN_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const requireSiteAuth = createSiteAuthMiddleware(API_SECRET, TOKEN_EXPIRY_MS);
 
 const BSKY_PUBLIC_API = "https://public.api.bsky.app/xrpc";
+
+// Add a reaction to the JSON field (deduplicates DIDs)
+async function addReactionToSubject(subjectUri: string, emoji: string, authorDid: string) {
+  // Check if it's a thread or comment
+  if (subjectUri.includes("/blue.skytalk.talk.thread/")) {
+    const thread = await db.select().from(threads).where(eq(threads.atUri, subjectUri)).limit(1);
+    if (thread.length > 0) {
+      const currentReactions = (thread[0].reactions || {}) as Record<string, string[]>;
+      const dids = currentReactions[emoji] || [];
+      if (!dids.includes(authorDid)) {
+        currentReactions[emoji] = [...dids, authorDid];
+        await db.update(threads)
+          .set({ reactions: currentReactions, updatedAt: new Date() })
+          .where(eq(threads.atUri, subjectUri));
+      }
+    }
+  } else if (subjectUri.includes("/blue.skytalk.talk.comment/")) {
+    const comment = await db.select().from(comments).where(eq(comments.atUri, subjectUri)).limit(1);
+    if (comment.length > 0) {
+      const currentReactions = (comment[0].reactions || {}) as Record<string, string[]>;
+      const dids = currentReactions[emoji] || [];
+      if (!dids.includes(authorDid)) {
+        currentReactions[emoji] = [...dids, authorDid];
+        await db.update(comments)
+          .set({ reactions: currentReactions, updatedAt: new Date() })
+          .where(eq(comments.atUri, subjectUri));
+      }
+    }
+  }
+}
+
+// Remove a reaction from the JSON field
+async function removeReactionFromSubject(subjectUri: string, emoji: string, authorDid: string) {
+  if (subjectUri.includes("/blue.skytalk.talk.thread/")) {
+    const thread = await db.select().from(threads).where(eq(threads.atUri, subjectUri)).limit(1);
+    if (thread.length > 0) {
+      const currentReactions = (thread[0].reactions || {}) as Record<string, string[]>;
+      const dids = currentReactions[emoji] || [];
+      const filtered = dids.filter(d => d !== authorDid);
+      if (filtered.length > 0) {
+        currentReactions[emoji] = filtered;
+      } else {
+        delete currentReactions[emoji];
+      }
+      await db.update(threads)
+        .set({ reactions: currentReactions, updatedAt: new Date() })
+        .where(eq(threads.atUri, subjectUri));
+    }
+  } else if (subjectUri.includes("/blue.skytalk.talk.comment/")) {
+    const comment = await db.select().from(comments).where(eq(comments.atUri, subjectUri)).limit(1);
+    if (comment.length > 0) {
+      const currentReactions = (comment[0].reactions || {}) as Record<string, string[]>;
+      const dids = currentReactions[emoji] || [];
+      const filtered = dids.filter(d => d !== authorDid);
+      if (filtered.length > 0) {
+        currentReactions[emoji] = filtered;
+      } else {
+        delete currentReactions[emoji];
+      }
+      await db.update(comments)
+        .set({ reactions: currentReactions, updatedAt: new Date() })
+        .where(eq(comments.atUri, subjectUri));
+    }
+  }
+}
 
 // Update thread commentCount by counting actual comments
 async function updateThreadCommentCount(threadId: string) {
@@ -506,6 +571,115 @@ app.put("/api/notifications/:did/read-all", requireSiteAuth, requireUserAuth, as
   } catch (error) {
     console.error("Error marking notifications as read:", error);
     res.status(500).json({ error: "Failed to mark notifications as read" });
+  }
+});
+
+// Get reactions for a subject (thread or comment)
+app.get("/api/reactions", async (req, res) => {
+  const { subjectUri } = req.query;
+
+  if (!subjectUri || typeof subjectUri !== "string") {
+    res.status(400).json({ error: "subjectUri is required" });
+    return;
+  }
+
+  try {
+    const result = await db
+      .select()
+      .from(reactions)
+      .where(and(eq(reactions.subjectUri, subjectUri), isNull(reactions.deletedAt)))
+      .orderBy(desc(reactions.createdAt));
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching reactions:", error);
+    res.status(500).json({ error: "Failed to fetch reactions" });
+  }
+});
+
+// Create a reaction
+app.post("/api/reactions", requireSiteAuth, requireUserAuth, async (req: AuthenticatedRequest, res) => {
+  const { id, subjectUri, subjectCid, emoji, atUri } = req.body;
+  const authorDid = req.authenticatedDid;
+
+  if (!id || !subjectUri || !subjectCid || !emoji || !atUri || !authorDid) {
+    res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
+
+  try {
+    // Check if user already reacted with this emoji
+    const existing = await db
+      .select()
+      .from(reactions)
+      .where(
+        and(
+          eq(reactions.subjectUri, subjectUri),
+          eq(reactions.authorDid, authorDid),
+          eq(reactions.emoji, emoji),
+          isNull(reactions.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      res.status(409).json({ error: "Already reacted with this emoji" });
+      return;
+    }
+
+    const newReaction = await db
+      .insert(reactions)
+      .values({
+        id,
+        atUri,
+        subjectUri,
+        subjectCid,
+        authorDid,
+        emoji,
+      })
+      .returning();
+
+    // Update the JSON field on thread/comment
+    await addReactionToSubject(subjectUri, emoji, authorDid);
+
+    res.status(201).json(newReaction[0]);
+  } catch (error) {
+    console.error("Error creating reaction:", error);
+    res.status(500).json({ error: "Failed to create reaction" });
+  }
+});
+
+// Delete a reaction
+app.delete("/api/reactions/:id", requireSiteAuth, requireUserAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const reaction = await db
+      .select()
+      .from(reactions)
+      .where(and(eq(reactions.id, req.params.id), isNull(reactions.deletedAt)))
+      .limit(1);
+
+    if (reaction.length === 0) {
+      res.status(404).json({ error: "Reaction not found" });
+      return;
+    }
+
+    if (reaction[0].authorDid !== req.authenticatedDid) {
+      res.status(403).json({ error: "Not authorized to delete this reaction" });
+      return;
+    }
+
+    await db
+      .update(reactions)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(eq(reactions.id, req.params.id));
+
+    // Update the JSON field on thread/comment
+    await removeReactionFromSubject(reaction[0].subjectUri, reaction[0].emoji, reaction[0].authorDid);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting reaction:", error);
+    res.status(500).json({ error: "Failed to delete reaction" });
   }
 });
 

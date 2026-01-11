@@ -23,6 +23,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth, authenticatedFetch } from "@/lib/auth";
 import { getHandlesByDids, getDidsByHandles, extractMentions, replaceMentionsWithMap } from "@/lib/bsky";
 import { formatDate } from "@/lib/utils";
+import { EmojiPickerButton } from "@/components/emoji-picker-button";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -30,6 +31,10 @@ interface Channel {
   id: string;
   nameJa: string;
   nameEn: string;
+}
+
+interface Reactions {
+  [emoji: string]: string[]; // emoji -> array of DIDs
 }
 
 interface Thread {
@@ -42,6 +47,8 @@ interface Thread {
   authorHandle?: string;
   commentCount: number;
   atUri: string;
+  cid?: string;
+  reactions?: Reactions;
 }
 
 interface Comment {
@@ -52,6 +59,44 @@ interface Comment {
   text: string;
   createdAt: string;
   atUri: string;
+  cid?: string;
+  reactions?: Reactions;
+}
+
+interface ReactionButtonsProps {
+  reactions: Reactions;
+  userDid?: string;
+  onReactionChange: (emoji: string, action: "add" | "remove") => void;
+  disabled?: boolean;
+}
+
+function ReactionButtons({ reactions, userDid, onReactionChange, disabled }: ReactionButtonsProps) {
+  const entries = Object.entries(reactions).filter(([, dids]) => dids.length > 0);
+
+  if (entries.length === 0 && !userDid) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-2">
+      {entries.map(([emoji, dids]) => {
+        const isOwn = userDid ? dids.includes(userDid) : false;
+        return (
+          <button
+            key={emoji}
+            onClick={() => !disabled && onReactionChange(emoji, isOwn ? "remove" : "add")}
+            disabled={disabled || !userDid}
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-colors ${
+              isOwn
+                ? "bg-primary/10 border-primary/30 text-primary"
+                : "bg-muted/50 border-transparent hover:bg-muted"
+            } ${disabled ? "opacity-50 cursor-not-allowed" : userDid ? "cursor-pointer" : "cursor-default"}`}
+          >
+            <span>{emoji}</span>
+            <span className="text-xs">{dids.length}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function ThreadPage() {
@@ -80,8 +125,155 @@ export default function ThreadPage() {
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
+  const [reactionLoading, setReactionLoading] = useState<string | null>(null); // subjectUri being processed
   const toastIdRef = useRef<string | number | null>(null);
   const editorRef = useRef<MentionTextareaRef>(null);
+
+  // Get CID from PDS for a record
+  const getCid = async (atUri: string): Promise<string | null> => {
+    if (!agent) return null;
+    try {
+      const parts = atUri.replace("at://", "").split("/");
+      const repo = parts[0];
+      const collection = parts[1];
+      const rkey = parts[2];
+      const result = await agent.com.atproto.repo.getRecord({ repo, collection, rkey });
+      return result.data.cid || null;
+    } catch (error) {
+      console.error("Error getting CID:", error);
+      return null;
+    }
+  };
+
+  // Handle adding or removing a reaction
+  const handleReaction = async (
+    subjectUri: string,
+    subjectCid: string,
+    emoji: string,
+    action: "add" | "remove"
+  ) => {
+    if (!user || !agent || reactionLoading) return;
+
+    setReactionLoading(subjectUri);
+    try {
+      if (action === "add") {
+        // Create record on PDS
+        const record = {
+          subject: { uri: subjectUri, cid: subjectCid },
+          emoji,
+          createdAt: new Date().toISOString(),
+        };
+
+        const result = await agent.com.atproto.repo.createRecord({
+          repo: user.did,
+          collection: "blue.skytalk.talk.reaction",
+          record,
+        });
+
+        const rkey = result.data.uri.split("/").pop();
+
+        // Save to API
+        await authenticatedFetch(`${API_URL}/api/reactions`, user.did, {
+          method: "POST",
+          body: JSON.stringify({
+            id: rkey,
+            subjectUri,
+            subjectCid,
+            emoji,
+            atUri: result.data.uri,
+          }),
+        });
+
+        // Update local state
+        if (subjectUri.includes("/blue.skytalk.talk.thread/")) {
+          setThread((prev) => {
+            if (!prev) return prev;
+            const current = prev.reactions || {};
+            const dids = current[emoji] || [];
+            if (!dids.includes(user.did)) {
+              return { ...prev, reactions: { ...current, [emoji]: [...dids, user.did] } };
+            }
+            return prev;
+          });
+        } else {
+          setComments((prev) =>
+            prev.map((c) => {
+              if (c.atUri === subjectUri) {
+                const current = c.reactions || {};
+                const dids = current[emoji] || [];
+                if (!dids.includes(user.did)) {
+                  return { ...c, reactions: { ...current, [emoji]: [...dids, user.did] } };
+                }
+              }
+              return c;
+            })
+          );
+        }
+      } else {
+        // Find the reaction to delete
+        const res = await fetch(`${API_URL}/api/reactions?subjectUri=${encodeURIComponent(subjectUri)}`);
+        if (!res.ok) throw new Error("Failed to fetch reactions");
+        const allReactions = await res.json();
+        const myReaction = allReactions.find(
+          (r: { authorDid: string; emoji: string }) => r.authorDid === user.did && r.emoji === emoji
+        );
+
+        if (myReaction) {
+          // Delete from PDS
+          const rkey = myReaction.atUri.split("/").pop();
+          await agent.com.atproto.repo.deleteRecord({
+            repo: user.did,
+            collection: "blue.skytalk.talk.reaction",
+            rkey,
+          });
+
+          // Delete from API
+          await authenticatedFetch(`${API_URL}/api/reactions/${myReaction.id}`, user.did, {
+            method: "DELETE",
+          });
+
+          // Update local state
+          if (subjectUri.includes("/blue.skytalk.talk.thread/")) {
+            setThread((prev) => {
+              if (!prev) return prev;
+              const current = prev.reactions || {};
+              const dids = (current[emoji] || []).filter((d) => d !== user.did);
+              const updated = { ...current };
+              if (dids.length > 0) {
+                updated[emoji] = dids;
+              } else {
+                delete updated[emoji];
+              }
+              return { ...prev, reactions: updated };
+            });
+          } else {
+            setComments((prev) =>
+              prev.map((c) => {
+                if (c.atUri === subjectUri) {
+                  const current = c.reactions || {};
+                  const dids = (current[emoji] || []).filter((d) => d !== user.did);
+                  const updated = { ...current };
+                  if (dids.length > 0) {
+                    updated[emoji] = dids;
+                  } else {
+                    delete updated[emoji];
+                  }
+                  return { ...c, reactions: updated };
+                }
+                return c;
+              })
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error handling reaction:", error);
+      // Show re-login dialog on error
+      setShowLoginModal(true);
+    } finally {
+      setReactionLoading(null);
+    }
+  };
 
   const handleLogin = async () => {
     if (!loginHandle.trim()) return;
@@ -408,6 +600,16 @@ export default function ThreadPage() {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
+                {user && user.did !== thread.authorDid && (
+                  <EmojiPickerButton
+                    onSelect={async (emoji) => {
+                      const cid = thread.cid || await getCid(thread.atUri);
+                      if (cid) {
+                        handleReaction(thread.atUri, cid, emoji, "add");
+                      }
+                    }}
+                  />
+                )}
               </div>
               {thread.text && (
                 <div className="prose prose-sm max-w-none mb-4">
@@ -422,6 +624,17 @@ export default function ThreadPage() {
               >
                 {thread.atUri}
               </a>
+              <ReactionButtons
+                reactions={thread.reactions || {}}
+                userDid={user?.did}
+                disabled={reactionLoading === thread.atUri}
+                onReactionChange={async (emoji, action) => {
+                  const cid = thread.cid || await getCid(thread.atUri);
+                  if (cid) {
+                    handleReaction(thread.atUri, cid, emoji, action);
+                  }
+                }}
+              />
             </CardContent>
           </Card>
 
@@ -449,7 +662,7 @@ export default function ThreadPage() {
                         @{c.authorHandle || c.authorDid}
                       </a>
                       <span>· {formatDate(c.createdAt, locale)}</span>
-                      {user?.did === c.authorDid ? (
+                      {user?.did === c.authorDid && (
                         <button
                           onClick={() =>
                             setDeleteTarget({ type: "comment", item: c })
@@ -459,14 +672,25 @@ export default function ThreadPage() {
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      ) : user && (
-                        <button
-                          onClick={() => handleReply(c)}
-                          className="ml-1 p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
-                          title={t("post.reply")}
-                        >
-                          <Reply className="w-3.5 h-3.5" />
-                        </button>
+                      )}
+                      {user && user.did !== c.authorDid && (
+                        <>
+                          <button
+                            onClick={() => handleReply(c)}
+                            className="ml-1 p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
+                            title={t("post.reply")}
+                          >
+                            <Reply className="w-3.5 h-3.5" />
+                          </button>
+                          <EmojiPickerButton
+                            onSelect={async (emoji) => {
+                              const cid = c.cid || await getCid(c.atUri);
+                              if (cid) {
+                                handleReaction(c.atUri, cid, emoji, "add");
+                              }
+                            }}
+                          />
+                        </>
                       )}
                     </div>
                     <div className="prose prose-sm max-w-none">
@@ -480,6 +704,17 @@ export default function ThreadPage() {
                     >
                       {c.atUri}
                     </a>
+                    <ReactionButtons
+                      reactions={c.reactions || {}}
+                      userDid={user?.did}
+                      disabled={reactionLoading === c.atUri}
+                      onReactionChange={async (emoji, action) => {
+                        const cid = c.cid || await getCid(c.atUri);
+                        if (cid) {
+                          handleReaction(c.atUri, cid, emoji, action);
+                        }
+                      }}
+                    />
                   </div>
                 ))}
               </CardContent>

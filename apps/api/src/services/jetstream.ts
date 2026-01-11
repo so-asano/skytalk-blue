@@ -1,13 +1,15 @@
 import { Jetstream, CommitCreateEvent, CommitUpdateEvent, CommitDeleteEvent, JetstreamOptions } from "@skyware/jetstream";
 import { db } from "../db/index.js";
-import { comments, threads, jetstreamCursors, threadEvents, commentEvents } from "../db/schema.js";
+import { comments, threads, reactions, jetstreamCursors, threadEvents, commentEvents } from "../db/schema.js";
 import { eq, desc, and, isNull, count } from "drizzle-orm";
 import {
   LEXICONS,
   validateThreadRecord,
   validateCommentRecord,
+  validateReactionRecord,
   type ThreadRecord,
   type CommentRecord,
+  type ReactionRecord,
 } from "../lexicons/schemas.js";
 
 export class JetstreamService {
@@ -47,7 +49,7 @@ export class JetstreamService {
       }
 
       const jetstreamOptions: JetstreamOptions = {
-        wantedCollections: [LEXICONS.THREAD, LEXICONS.COMMENT],
+        wantedCollections: [LEXICONS.THREAD, LEXICONS.COMMENT, LEXICONS.REACTION],
       };
 
       if (savedCursor) {
@@ -63,7 +65,7 @@ export class JetstreamService {
       this.reconnectAttempts = 0;
 
       console.log("✅ Jetstream subscription service started");
-      console.log("📡 Subscribed to lexicons:", [LEXICONS.THREAD, LEXICONS.COMMENT]);
+      console.log("📡 Subscribed to lexicons:", [LEXICONS.THREAD, LEXICONS.COMMENT, LEXICONS.REACTION]);
     } catch (error) {
       console.error("❌ Failed to start Jetstream service:", error);
       await this.handleReconnect();
@@ -103,6 +105,17 @@ export class JetstreamService {
     this.jetstream.onDelete(LEXICONS.COMMENT, (event) => {
       console.log("🗑️ Comment deleted:", event.commit.rkey);
       this.handleCommentEvent(event, "DELETE");
+    });
+
+    // Reaction events
+    this.jetstream.onCreate(LEXICONS.REACTION, (event) => {
+      console.log("😀 Reaction created:", event.commit.rkey);
+      this.handleReactionEvent(event, "CREATE");
+    });
+
+    this.jetstream.onDelete(LEXICONS.REACTION, (event) => {
+      console.log("🗑️ Reaction deleted:", event.commit.rkey);
+      this.handleReactionEvent(event, "DELETE");
     });
 
     // Connection events
@@ -328,6 +341,146 @@ export class JetstreamService {
       }
     } catch (error) {
       console.error("Error handling comment event:", error);
+    }
+  }
+
+  private async handleReactionEvent(
+    event: CommitCreateEvent<typeof LEXICONS.REACTION> | CommitDeleteEvent<typeof LEXICONS.REACTION>,
+    action: "CREATE" | "DELETE"
+  ): Promise<void> {
+    try {
+      this.messageCount++;
+
+      if (event.time_us && this.currentCursor && event.time_us <= this.currentCursor) {
+        console.log(`Ignoring duplicate/outdated reaction event: cursor ${event.time_us} <= ${this.currentCursor}`);
+        return;
+      }
+
+      const { commit } = event;
+      const repo = event.did;
+      const atUri = `at://${repo}/${LEXICONS.REACTION}/${commit.rkey}`;
+
+      let record: ReactionRecord | null = null;
+      if (action === "CREATE" && "record" in commit) {
+        const validation = validateReactionRecord(commit.record);
+        if (!validation.success) {
+          console.error("Invalid reaction record:", validation.error.issues);
+          return;
+        }
+        record = validation.data;
+      }
+
+      if (action === "CREATE" && record) {
+        // Check if reaction already exists
+        const existing = await db
+          .select()
+          .from(reactions)
+          .where(eq(reactions.atUri, atUri))
+          .limit(1);
+
+        if (existing.length === 0) {
+          // Insert new reaction
+          await db.insert(reactions).values({
+            id: commit.rkey,
+            atUri,
+            subjectUri: record.subject.uri,
+            subjectCid: record.subject.cid,
+            authorDid: repo,
+            emoji: record.emoji,
+          });
+
+          // Update the JSON field on thread/comment
+          const subjectUri = record.subject.uri;
+          const emoji = record.emoji;
+          const authorDid = repo;
+
+          if (subjectUri.includes("/blue.skytalk.talk.thread/")) {
+            const thread = await db.select().from(threads).where(eq(threads.atUri, subjectUri)).limit(1);
+            if (thread.length > 0) {
+              const currentReactions = (thread[0].reactions || {}) as Record<string, string[]>;
+              const dids = currentReactions[emoji] || [];
+              if (!dids.includes(authorDid)) {
+                currentReactions[emoji] = [...dids, authorDid];
+                await db.update(threads)
+                  .set({ reactions: currentReactions, updatedAt: new Date() })
+                  .where(eq(threads.atUri, subjectUri));
+              }
+            }
+          } else if (subjectUri.includes("/blue.skytalk.talk.comment/")) {
+            const comment = await db.select().from(comments).where(eq(comments.atUri, subjectUri)).limit(1);
+            if (comment.length > 0) {
+              const currentReactions = (comment[0].reactions || {}) as Record<string, string[]>;
+              const dids = currentReactions[emoji] || [];
+              if (!dids.includes(authorDid)) {
+                currentReactions[emoji] = [...dids, authorDid];
+                await db.update(comments)
+                  .set({ reactions: currentReactions, updatedAt: new Date() })
+                  .where(eq(comments.atUri, subjectUri));
+              }
+            }
+          }
+
+          console.log(`Reaction CREATE synced: ${atUri}`);
+        }
+      } else if (action === "DELETE") {
+        // Get the reaction first to know the subject and emoji
+        const reaction = await db
+          .select()
+          .from(reactions)
+          .where(eq(reactions.atUri, atUri))
+          .limit(1);
+
+        // Mark reaction as deleted
+        await db
+          .update(reactions)
+          .set({ deletedAt: new Date(), updatedAt: new Date() })
+          .where(eq(reactions.atUri, atUri));
+
+        // Update the JSON field on thread/comment
+        if (reaction.length > 0) {
+          const { subjectUri, emoji, authorDid } = reaction[0];
+
+          if (subjectUri.includes("/blue.skytalk.talk.thread/")) {
+            const thread = await db.select().from(threads).where(eq(threads.atUri, subjectUri)).limit(1);
+            if (thread.length > 0) {
+              const currentReactions = (thread[0].reactions || {}) as Record<string, string[]>;
+              const dids = currentReactions[emoji] || [];
+              const filtered = dids.filter(d => d !== authorDid);
+              if (filtered.length > 0) {
+                currentReactions[emoji] = filtered;
+              } else {
+                delete currentReactions[emoji];
+              }
+              await db.update(threads)
+                .set({ reactions: currentReactions, updatedAt: new Date() })
+                .where(eq(threads.atUri, subjectUri));
+            }
+          } else if (subjectUri.includes("/blue.skytalk.talk.comment/")) {
+            const comment = await db.select().from(comments).where(eq(comments.atUri, subjectUri)).limit(1);
+            if (comment.length > 0) {
+              const currentReactions = (comment[0].reactions || {}) as Record<string, string[]>;
+              const dids = currentReactions[emoji] || [];
+              const filtered = dids.filter(d => d !== authorDid);
+              if (filtered.length > 0) {
+                currentReactions[emoji] = filtered;
+              } else {
+                delete currentReactions[emoji];
+              }
+              await db.update(comments)
+                .set({ reactions: currentReactions, updatedAt: new Date() })
+                .where(eq(comments.atUri, subjectUri));
+            }
+          }
+        }
+
+        console.log(`Reaction DELETE synced: ${atUri}`);
+      }
+
+      if (event.time_us) {
+        this.currentCursor = event.time_us;
+      }
+    } catch (error) {
+      console.error("Error handling reaction event:", error);
     }
   }
 
