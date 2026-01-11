@@ -287,6 +287,7 @@ export default function ChannelPage() {
                   onChange={setNewThreadContent}
                   onChangePlainText={setNewThreadContentPlain}
                   onHeightChange={setEditorHeight}
+                  onSubmit={handleCreateThread}
                   maxLength={4000}
                   placeholder={t("post.contentPlaceholder")}
                 />

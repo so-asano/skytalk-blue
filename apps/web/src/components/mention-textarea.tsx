@@ -14,9 +14,15 @@ interface MentionTextareaProps {
   onChange: (value: string) => void;
   onChangePlainText?: (plainText: string) => void;
   onHeightChange?: (height: number) => void;
+  onSubmit?: () => void;
   placeholder?: string;
   className?: string;
   maxLength?: number;
+}
+
+export interface MentionTextareaRef {
+  setContent: (content: string) => void;
+  focus: () => void;
 }
 
 interface SuggestionItem {
@@ -108,136 +114,159 @@ const MentionList = forwardRef<MentionListRef, MentionListProps>(
   }
 );
 
-export function MentionTextarea({
-  value,
-  onChange,
-  onChangePlainText,
-  onHeightChange,
-  placeholder,
-  className,
-  maxLength,
-}: MentionTextareaProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { t } = useI18n();
-  const noResultsText = t("common.noResults");
+export const MentionTextarea = forwardRef<MentionTextareaRef, MentionTextareaProps>(
+  function MentionTextarea({
+    value,
+    onChange,
+    onChangePlainText,
+    onHeightChange,
+    onSubmit,
+    placeholder,
+    className,
+    maxLength,
+  }, ref) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const { t } = useI18n();
+    const noResultsText = t("common.noResults");
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({
-        heading: false,
-        bulletList: false,
-        orderedList: false,
-        blockquote: false,
-        codeBlock: false,
-        horizontalRule: false,
-      }),
-      Placeholder.configure({
-        placeholder: placeholder || "",
-      }),
-      Mention.configure({
-        HTMLAttributes: {
-          class: "text-primary font-medium",
-        },
-        suggestion: {
-          items: async ({ query }): Promise<SuggestionItem[]> => {
-            if (!query) return [];
-            const actors = await searchActorsTypeahead(query);
-            return actors.map((actor) => ({
-              id: actor.handle,
-              label: actor.handle,
-            }));
+    const editor = useEditor({
+      immediatelyRender: false,
+      extensions: [
+        StarterKit.configure({
+          heading: false,
+          bulletList: false,
+          orderedList: false,
+          blockquote: false,
+          codeBlock: false,
+          horizontalRule: false,
+        }),
+        Placeholder.configure({
+          placeholder: placeholder || "",
+        }),
+        Mention.configure({
+          HTMLAttributes: {
+            class: "text-primary font-medium",
           },
-          render: () => {
-            let component: ReactRenderer | null = null;
-            let popup: TippyInstance[] | null = null;
+          suggestion: {
+            items: async ({ query }): Promise<SuggestionItem[]> => {
+              if (!query) return [];
+              const actors = await searchActorsTypeahead(query);
+              return actors.map((actor) => ({
+                id: actor.handle,
+                label: actor.handle,
+              }));
+            },
+            render: () => {
+              let component: ReactRenderer | null = null;
+              let popup: TippyInstance[] | null = null;
 
-            return {
-              onStart: (props) => {
-                component = new ReactRenderer(MentionList, {
-                  props: {
+              return {
+                onStart: (props) => {
+                  component = new ReactRenderer(MentionList, {
+                    props: {
+                      ...props,
+                      noResultsText,
+                    },
+                    editor: props.editor,
+                  });
+
+                  if (!props.clientRect) return;
+
+                  popup = tippy("body", {
+                    getReferenceClientRect: props.clientRect as () => DOMRect,
+                    appendTo: () => document.body,
+                    content: component.element,
+                    showOnCreate: true,
+                    interactive: true,
+                    trigger: "manual",
+                    placement: "bottom-start",
+                  });
+                },
+                onUpdate: (props) => {
+                  component?.updateProps({
                     ...props,
                     noResultsText,
-                  },
-                  editor: props.editor,
-                });
+                  });
 
-                if (!props.clientRect) return;
+                  if (!props.clientRect) return;
 
-                popup = tippy("body", {
-                  getReferenceClientRect: props.clientRect as () => DOMRect,
-                  appendTo: () => document.body,
-                  content: component.element,
-                  showOnCreate: true,
-                  interactive: true,
-                  trigger: "manual",
-                  placement: "bottom-start",
-                });
-              },
-              onUpdate: (props) => {
-                component?.updateProps({
-                  ...props,
-                  noResultsText,
-                });
-
-                if (!props.clientRect) return;
-
-                popup?.[0]?.setProps({
-                  getReferenceClientRect: props.clientRect as () => DOMRect,
-                });
-              },
-              onKeyDown: (props) => {
-                if (props.event.key === "Escape") {
-                  popup?.[0]?.hide();
-                  return true;
-                }
-                return (component?.ref as MentionListRef | null)?.onKeyDown(props) ?? false;
-              },
-              onExit: () => {
-                popup?.[0]?.destroy();
-                component?.destroy();
-              },
-            };
+                  popup?.[0]?.setProps({
+                    getReferenceClientRect: props.clientRect as () => DOMRect,
+                  });
+                },
+                onKeyDown: (props) => {
+                  if (props.event.key === "Escape") {
+                    popup?.[0]?.hide();
+                    return true;
+                  }
+                  return (component?.ref as MentionListRef | null)?.onKeyDown(props) ?? false;
+                },
+                onExit: () => {
+                  popup?.[0]?.destroy();
+                  component?.destroy();
+                },
+              };
+            },
           },
-        },
-      }),
-    ],
-    content: value,
-    onUpdate: ({ editor }) => {
-      const text = editor.getText();
-      if (maxLength && text.length > maxLength) return;
-      onChange(editor.getHTML());
-      onChangePlainText?.(text);
-    },
-    editorProps: {
-      attributes: {
-        class: `min-h-[90px] px-3 py-2 border rounded-md text-sm focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring ${className || ""}`,
+        }),
+      ],
+      content: value,
+      onUpdate: ({ editor }) => {
+        const text = editor.getText();
+        if (maxLength && text.length > maxLength) return;
+        onChange(editor.getHTML());
+        onChangePlainText?.(text);
       },
-    },
-  });
-
-  useEffect(() => {
-    if (editor && value === "") {
-      editor.commands.clearContent();
-    }
-  }, [editor, value]);
-
-  useEffect(() => {
-    if (!containerRef.current || !onHeightChange) return;
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        onHeightChange(entry.contentRect.height);
-      }
+      editorProps: {
+        attributes: {
+          class: `min-h-[90px] px-3 py-2 border rounded-md text-sm focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring ${className || ""}`,
+        },
+        handleKeyDown: (_view, event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault();
+            onSubmit?.();
+            return true;
+          }
+          return false;
+        },
+      },
     });
 
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, [onHeightChange]);
+    useImperativeHandle(ref, () => ({
+      setContent: (content: string) => {
+        const html = content.replace(/\n/g, "<br>");
+        editor?.commands.setContent(html);
+        const text = editor?.getText() || "";
+        onChangePlainText?.(text);
+      },
+      focus: () => {
+        editor?.commands.focus("end");
+      },
+    }), [editor, onChangePlainText]);
 
-  return (
-    <div ref={containerRef}>
-      <EditorContent editor={editor} />
-    </div>
-  );
-}
+    useEffect(() => {
+      if (editor && value === "") {
+        editor.commands.clearContent();
+      }
+    }, [editor, value]);
+
+    useEffect(() => {
+      if (!containerRef.current || !onHeightChange) return;
+
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          onHeightChange(entry.contentRect.height);
+        }
+      });
+
+      observer.observe(containerRef.current);
+      return () => observer.disconnect();
+    }, [onHeightChange]);
+
+    return (
+      <div ref={containerRef}>
+        <EditorContent editor={editor} />
+      </div>
+    );
+  }
+);

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { MentionTextarea } from "@/components/mention-textarea";
+import { MentionTextarea, MentionTextareaRef } from "@/components/mention-textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -81,7 +81,7 @@ export default function ThreadPage() {
   const [deleting, setDeleting] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
   const toastIdRef = useRef<string | number | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<MentionTextareaRef>(null);
 
   const handleLogin = async () => {
     if (!loginHandle.trim()) return;
@@ -281,6 +281,7 @@ export default function ThreadPage() {
 
       setNewComment("");
       setNewCommentPlain("");
+      editorRef.current?.setContent("");
     } catch (error) {
       console.error("Error posting comment:", error);
     } finally {
@@ -355,12 +356,9 @@ export default function ThreadPage() {
     setNewCommentPlain(replyText);
     setCommentTab("write");
     setTimeout(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(
-        textareaRef.current.value.length,
-        textareaRef.current.value.length
-      );
-    }, 0);
+      editorRef.current?.setContent(replyText);
+      editorRef.current?.focus();
+    }, 100);
   };
 
   const channelName = channel
@@ -515,10 +513,12 @@ export default function ThreadPage() {
                 </div>
                 {commentTab === "write" ? (
                   <MentionTextarea
+                    ref={editorRef}
                     value={newComment}
                     onChange={setNewComment}
                     onChangePlainText={setNewCommentPlain}
                     onHeightChange={setCommentEditorHeight}
+                    onSubmit={handlePostComment}
                     maxLength={4000}
                     placeholder={t("post.contentPlaceholder")}
                   />
