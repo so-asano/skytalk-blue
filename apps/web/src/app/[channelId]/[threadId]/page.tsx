@@ -230,14 +230,14 @@ export default function ThreadPage() {
   }, []);
 
   const handlePostComment = async () => {
-    if (!user || !agent || !thread || !newComment.trim() || posting) return;
+    if (!user || !agent || !thread || !newCommentPlain.trim() || posting) return;
 
     setPosting(true);
     try {
       // Create record on PDS
       const record = {
         threadUri: thread.atUri,
-        text: newComment,
+        text: newCommentPlain,
         createdAt: new Date().toISOString(),
       };
 
@@ -251,7 +251,7 @@ export default function ThreadPage() {
       await authenticatedFetch(`${API_URL}/api/threads/${threadId}/comments`, user.did, {
         method: "POST",
         body: JSON.stringify({
-          text: newComment,
+          text: newCommentPlain,
           authorDid: user.did,
           atUri: result.data.uri,
         }),

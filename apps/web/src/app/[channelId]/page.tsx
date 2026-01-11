@@ -175,7 +175,7 @@ export default function ChannelPage() {
   }, []);
 
   const handleCreateThread = async () => {
-    if (!user || !agent || !newThreadTitle.trim() || !newThreadContent.trim() || creating) return;
+    if (!user || !agent || !newThreadTitle.trim() || !newThreadContentPlain.trim() || creating) return;
 
     setCreating(true);
     try {
@@ -183,7 +183,7 @@ export default function ChannelPage() {
       const record = {
         channelId,
         title: newThreadTitle,
-        text: newThreadContent || undefined,
+        text: newThreadContentPlain || undefined,
         createdAt: new Date().toISOString(),
       };
 
@@ -198,7 +198,7 @@ export default function ChannelPage() {
         method: "POST",
         body: JSON.stringify({
           title: newThreadTitle,
-          text: newThreadContent || null,
+          text: newThreadContentPlain || null,
           channelId,
           authorDid: user.did,
           atUri: result.data.uri,
