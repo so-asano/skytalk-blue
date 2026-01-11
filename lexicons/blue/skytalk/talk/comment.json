@@ -8,7 +8,7 @@
       "key": "tid",
       "record": {
         "type": "object",
-        "required": ["threadUri", "content", "createdAt"],
+        "required": ["threadUri", "text", "createdAt"],
         "properties": {
           "threadUri": {
             "type": "string",
