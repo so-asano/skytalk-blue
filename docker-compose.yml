@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: skytalkblue-postgres
+    environment:
+      POSTGRES_USER: skytalkblue
+      POSTGRES_PASSWORD: skytalkblue
+      POSTGRES_DB: skytalkblue
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

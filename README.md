@@ -1,6 +1,6 @@
 # SkyTalk.Blue
 
-A forum/discussion board built on the AT Protocol (Bluesky).
+A forum/discussion board built on the AT Protocol.
 
 ## Features
 
@@ -25,14 +25,16 @@ lexicons/  # AT Protocol lexicon definitions
 
 - `blue.skytalk.talk.thread` - Thread records
 - `blue.skytalk.talk.comment` - Comment records
+- `blue.skytalk.talk.reaction` - Reaction records
+- `blue.skytalk.talk.permissionSet` - Permission set records
 
 ## Development
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - pnpm 9+
-- PostgreSQL
+- Docker (for PostgreSQL)
 
 ### Setup
 
@@ -40,9 +42,15 @@ lexicons/  # AT Protocol lexicon definitions
 # Install dependencies
 pnpm install
 
+# Start PostgreSQL with Docker
+docker compose up -d
+
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your database URL and API secret
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+# Edit .env files as needed (API_SECRET must match between api and web)
+# Modify docker-compose.yml if you need to change ports or credentials
 
 # Run database migrations
 pnpm --filter api db:push
@@ -53,13 +61,22 @@ pnpm dev
 
 ### Environment Variables
 
+**Root `.env`**
 ```
-DATABASE_URL=postgres://...
+DATABASE_URL=postgresql://skytalkblue:skytalkblue@localhost:5432/skytalkblue
+```
+
+**`apps/api/.env`**
+```
+DATABASE_URL=postgresql://skytalkblue:skytalkblue@localhost:5432/skytalkblue
 API_SECRET=your-secret-key
-CORS_ORIGIN=http://localhost:3000
+```
+
+**`apps/web/.env.local`**
+```
+NEXT_PUBLIC_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_API_SECRET=your-secret-key
-NEXT_PUBLIC_URL=http://localhost:3000
 ```
 
 ## Tech Stack
