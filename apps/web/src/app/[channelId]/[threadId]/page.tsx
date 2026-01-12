@@ -620,6 +620,17 @@ export default function ThreadPage() {
         });
         setComments(resolvedComments);
         setOgpMap(data.ogp || {});
+
+        // Scroll to comment if hash is present
+        if (window.location.hash) {
+          const id = window.location.hash.slice(1); // remove '#'
+          setTimeout(() => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }, 100);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       }
