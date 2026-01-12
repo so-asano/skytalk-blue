@@ -162,13 +162,46 @@ function getBlueskyPostInfo(url: string): { handle: string; rkey: string } | nul
 
 // Bluesky Embed component
 function BlueskyEmbed({ handle, rkey }: { handle: string; rkey: string }) {
+  const [did, setDid] = useState<string | null>(
+    handle.startsWith("did:") ? handle : null
+  );
+
+  useEffect(() => {
+    // Resolve handle to DID if needed
+    if (!handle.startsWith("did:")) {
+      getDidsByHandles([handle]).then((map) => {
+        const resolvedDid = map.get(handle);
+        if (resolvedDid) {
+          setDid(resolvedDid);
+        }
+      });
+    }
+  }, [handle]);
+
+  if (!did) {
+    return (
+      <div className="mt-3 max-w-md border rounded-lg p-4 bg-muted/30">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Loading Bluesky post...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const embedId = `bsky-${did}-${rkey}`;
+  const embedUrl = `https://embed.bsky.app/embed/${did}/app.bsky.feed.post/${rkey}?id=${embedId}`;
+
   return (
     <div className="mt-3 max-w-md">
       <iframe
-        src={`https://embed.bsky.app/embed/bsky.app/profile/${handle}/post/${rkey}`}
-        className="w-full border-0 rounded-lg"
+        data-bluesky-id={embedId}
+        src={embedUrl}
+        width="100%"
+        frameBorder={0}
+        scrolling="no"
+        className="border-none block"
         style={{ minHeight: 200 }}
-        loading="lazy"
         title="Bluesky post"
       />
     </div>
