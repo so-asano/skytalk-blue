@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MessageCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
@@ -66,7 +67,10 @@ export function ThreadCard({ thread, channelName, showChannel = true, highlighte
               </span>
               {" "}· {formatDate(thread.createdAt, locale)}
             </span>
-            <span className="ml-auto">{t("thread.comments", { count: thread.commentCount })}</span>
+            <span className="ml-auto flex items-center gap-1">
+              <MessageCircle className="w-3.5 h-3.5" />
+              {thread.commentCount}
+            </span>
           </div>
         </CardContent>
       </Card>

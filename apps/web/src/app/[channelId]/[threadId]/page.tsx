@@ -804,16 +804,16 @@ export default function ThreadPage() {
               <h2 className="text-xl font-bold mb-2 truncate">
                 {thread.title}
               </h2>
-              <div className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+              <div className="text-sm text-muted-foreground mb-3 flex items-center gap-1 min-w-0">
                 <a
                   href={`https://bsky.app/profile/${thread.authorDid}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:underline"
+                  className="hover:underline truncate"
                 >
                   @{thread.authorHandle || thread.authorDid}
                 </a>
-                <span>· {formatDate(thread.createdAt, locale)}</span>
+                <span className="shrink-0">· {formatDate(thread.createdAt, locale)}</span>
                 {user?.did === thread.authorDid && (
                   <button
                     onClick={() => setDeleteTarget({ type: "thread" })}
@@ -880,16 +880,16 @@ export default function ThreadPage() {
                     }
                   >
                     {index > 0 && <Separator className="my-6" />}
-                    <div className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                    <div className="text-sm text-muted-foreground mb-3 flex items-center gap-1 min-w-0">
                       <a
                         href={`https://bsky.app/profile/${c.authorDid}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:underline"
+                        className="hover:underline truncate"
                       >
                         @{c.authorHandle || c.authorDid}
                       </a>
-                      <span>· {formatDate(c.createdAt, locale)}</span>
+                      <span className="shrink-0">· {formatDate(c.createdAt, locale)}</span>
                       {user?.did === c.authorDid && (
                         <button
                           onClick={() =>
