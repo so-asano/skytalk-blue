@@ -140,6 +140,41 @@ function YouTubeEmbed({ videoId }: { videoId: string }) {
   );
 }
 
+// Extract Bluesky post info from URL
+function getBlueskyPostInfo(url: string): { handle: string; rkey: string } | null {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.replace("www.", "");
+
+    // bsky.app/profile/{handle}/post/{rkey}
+    if (hostname === "bsky.app") {
+      const match = urlObj.pathname.match(/^\/profile\/([^/]+)\/post\/([^/]+)/);
+      if (match) {
+        return { handle: match[1], rkey: match[2] };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Bluesky Embed component
+function BlueskyEmbed({ handle, rkey }: { handle: string; rkey: string }) {
+  return (
+    <div className="mt-3 max-w-md">
+      <iframe
+        src={`https://embed.bsky.app/embed/bsky.app/profile/${handle}/post/${rkey}`}
+        className="w-full border-0 rounded-lg"
+        style={{ minHeight: 200 }}
+        loading="lazy"
+        title="Bluesky post"
+      />
+    </div>
+  );
+}
+
 // OGP Card component
 function OgpCard({ data }: { data: OgpData }) {
   if (!data.title && !data.description && !data.image) return null;
@@ -190,6 +225,12 @@ function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: O
         const youtubeId = getYouTubeVideoId(url);
         if (youtubeId) {
           return <YouTubeEmbed key={url} videoId={youtubeId} />;
+        }
+
+        // Check if it's a Bluesky post URL
+        const bskyInfo = getBlueskyPostInfo(url);
+        if (bskyInfo) {
+          return <BlueskyEmbed key={url} handle={bskyInfo.handle} rkey={bskyInfo.rkey} />;
         }
 
         // Otherwise show OGP card
