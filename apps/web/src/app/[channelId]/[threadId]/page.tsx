@@ -91,6 +91,55 @@ function extractUrls(text: string | null | undefined): string[] {
   return [...new Set(matches)];
 }
 
+// Extract YouTube video ID from URL
+function getYouTubeVideoId(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.replace("www.", "");
+
+    if (hostname === "youtube.com" || hostname === "m.youtube.com") {
+      // youtube.com/watch?v=VIDEO_ID
+      if (urlObj.pathname === "/watch") {
+        return urlObj.searchParams.get("v");
+      }
+      // youtube.com/embed/VIDEO_ID
+      if (urlObj.pathname.startsWith("/embed/")) {
+        return urlObj.pathname.split("/")[2] || null;
+      }
+      // youtube.com/shorts/VIDEO_ID
+      if (urlObj.pathname.startsWith("/shorts/")) {
+        return urlObj.pathname.split("/")[2] || null;
+      }
+    }
+
+    // youtu.be/VIDEO_ID
+    if (hostname === "youtu.be") {
+      return urlObj.pathname.slice(1) || null;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// YouTube Embed component
+function YouTubeEmbed({ videoId }: { videoId: string }) {
+  return (
+    <div className="mt-3 max-w-md">
+      <div className="relative w-full aspect-video rounded-lg overflow-hidden">
+        <iframe
+          src={`https://www.youtube.com/embed/${videoId}`}
+          title="YouTube video"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="absolute inset-0 w-full h-full"
+        />
+      </div>
+    </div>
+  );
+}
+
 // OGP Card component
 function OgpCard({ data }: { data: OgpData }) {
   if (!data.title && !data.description && !data.image) return null;
@@ -129,7 +178,7 @@ function OgpCard({ data }: { data: OgpData }) {
   );
 }
 
-// OGP Cards for text content
+// OGP Cards for text content (with YouTube embed support)
 function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: OgpMap }) {
   const urls = extractUrls(text);
   if (urls.length === 0) return null;
@@ -137,6 +186,13 @@ function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: O
   return (
     <>
       {urls.map((url) => {
+        // Check if it's a YouTube URL
+        const youtubeId = getYouTubeVideoId(url);
+        if (youtubeId) {
+          return <YouTubeEmbed key={url} videoId={youtubeId} />;
+        }
+
+        // Otherwise show OGP card
         const data = ogpMap[url];
         if (!data) return null;
         return <OgpCard key={url} data={data} />;
