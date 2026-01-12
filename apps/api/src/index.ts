@@ -7,6 +7,7 @@ import { seedChannels } from "./db/seed.js";
 import { eq, desc, isNull, and, gt, count, inArray } from "drizzle-orm";
 import { jetstreamService } from "./services/jetstream.js";
 import { createSiteAuthMiddleware, requireUserAuth, AuthenticatedRequest } from "./auth.js";
+import { extractUrls, getOgpBatch } from "./services/ogp.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -236,10 +237,15 @@ app.get("/api/threads", async (req, res) => {
         ? newThreads[0].id
         : afterId as string;
 
+      // Extract URLs and fetch OGP
+      const allUrls = newThreads.flatMap(t => extractUrls(t.text));
+      const ogp = allUrls.length > 0 ? await getOgpBatch(allUrls) : {};
+
       res.json({
         threads: newThreads,
         newestId,
         hasMore: newThreads.length === limit,
+        ogp,
       });
     } else {
       // Initial load - get latest threads by update time
@@ -252,10 +258,15 @@ app.get("/api/threads", async (req, res) => {
 
       const newestId = allThreads.length > 0 ? allThreads[0].id : null;
 
+      // Extract URLs and fetch OGP
+      const allUrls = allThreads.flatMap(t => extractUrls(t.text));
+      const ogp = allUrls.length > 0 ? await getOgpBatch(allUrls) : {};
+
       res.json({
         threads: allThreads,
         newestId,
         hasMore: allThreads.length === limit,
+        ogp,
       });
     }
   } catch (error) {
@@ -306,9 +317,17 @@ app.get("/api/threads/:id", async (req, res) => {
 
     const cidMap = new Map(commentCids.map(c => [c.atUri, c.cid]));
 
+    // Extract URLs from thread and comments, fetch OGP
+    const allUrls = [
+      ...extractUrls(thread[0].text),
+      ...threadComments.flatMap(c => extractUrls(c.text)),
+    ];
+    const ogp = allUrls.length > 0 ? await getOgpBatch(allUrls) : {};
+
     res.json({
       thread: { ...thread[0], cid: threadEvent[0]?.cid || null },
       comments: threadComments.map(c => ({ ...c, cid: cidMap.get(c.atUri) || null })),
+      ogp,
     });
   } catch (error) {
     console.error("Error fetching thread:", error);
