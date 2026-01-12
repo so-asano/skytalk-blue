@@ -37,6 +37,18 @@ interface Reactions {
   [emoji: string]: string[]; // emoji -> array of DIDs
 }
 
+interface OgpData {
+  url: string;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  siteName: string | null;
+}
+
+interface OgpMap {
+  [url: string]: OgpData;
+}
+
 interface Thread {
   id: string;
   channelId: string;
@@ -68,6 +80,69 @@ interface ReactionButtonsProps {
   userDid?: string;
   onReactionChange: (emoji: string, action: "add" | "remove") => void;
   disabled?: boolean;
+}
+
+// Extract URLs from text
+function extractUrls(text: string | null | undefined): string[] {
+  if (!text) return [];
+  // eslint-disable-next-line no-useless-escape
+  const urlRegex = /https?:\/\/[^\s<>\[\]()'"]+/g;
+  const matches = text.match(urlRegex) || [];
+  return [...new Set(matches)];
+}
+
+// OGP Card component
+function OgpCard({ data }: { data: OgpData }) {
+  if (!data.title && !data.description && !data.image) return null;
+
+  return (
+    <a
+      href={data.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block mt-3 max-w-md border rounded-lg overflow-hidden hover:bg-muted/50 transition-colors"
+    >
+      {data.image && (
+        <div className="aspect-[1.91/1] bg-muted">
+          <img
+            src={data.image}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        </div>
+      )}
+      <div className="p-3">
+        {data.siteName && (
+          <p className="text-xs text-muted-foreground mb-1">{data.siteName}</p>
+        )}
+        {data.title && (
+          <p className="text-sm font-medium line-clamp-2">{data.title}</p>
+        )}
+        {data.description && (
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{data.description}</p>
+        )}
+      </div>
+    </a>
+  );
+}
+
+// OGP Cards for text content
+function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: OgpMap }) {
+  const urls = extractUrls(text);
+  if (urls.length === 0) return null;
+
+  return (
+    <>
+      {urls.map((url) => {
+        const data = ogpMap[url];
+        if (!data) return null;
+        return <OgpCard key={url} data={data} />;
+      })}
+    </>
+  );
 }
 
 function ReactionButtons({ reactions, userDid, onReactionChange, disabled }: ReactionButtonsProps) {
@@ -109,6 +184,7 @@ export default function ThreadPage() {
   const [channel, setChannel] = useState<Channel | null>(null);
   const [thread, setThread] = useState<Thread | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [ogpMap, setOgpMap] = useState<OgpMap>({});
   const [pendingComments, setPendingComments] = useState<Comment[]>([]);
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
   const [newComment, setNewComment] = useState("");
@@ -397,6 +473,7 @@ export default function ThreadPage() {
             handleMap.get(data.thread.authorDid) || data.thread.authorDid,
         });
         setComments(resolvedComments);
+        setOgpMap(data.ogp || {});
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -618,6 +695,7 @@ export default function ThreadPage() {
                   <Markdown>{thread.text}</Markdown>
                 </div>
               )}
+              <OgpCards text={thread.text} ogpMap={ogpMap} />
               <a
                 href={`https://pdsls.dev/${thread.atUri}`}
                 target="_blank"
@@ -702,6 +780,7 @@ export default function ThreadPage() {
                     <div className="prose prose-sm max-w-none">
                       <Markdown>{c.text}</Markdown>
                     </div>
+                    <OgpCards text={c.text} ogpMap={ogpMap} />
                     <a
                       href={`https://pdsls.dev/${c.atUri}`}
                       target="_blank"
