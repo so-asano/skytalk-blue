@@ -11,7 +11,8 @@
     "language": "言語",
     "theme": "テーマ",
     "menu": "メニュー",
-    "noResults": "結果なし"
+    "noResults": "結果なし",
+    "history": "履歴"
   },
   "theme": {
     "light": "ライト",
@@ -120,5 +121,10 @@
   },
   "reaction": {
     "notAvailable": "この投稿にはリアクションできません"
+  },
+  "history": {
+    "empty": "投稿履歴はありません",
+    "thread": "スレッド",
+    "comment": "コメント"
   }
 }

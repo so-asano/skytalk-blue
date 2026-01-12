@@ -618,6 +618,53 @@ app.put("/api/notifications/:did/read-all", requireSiteAuth, requireUserAuth, as
   }
 });
 
+// Get user's post history (threads and comments)
+app.get("/api/history/:did", requireSiteAuth, requireUserAuth, async (req: AuthenticatedRequest, res) => {
+  // Verify user is fetching their own history
+  if (req.params.did !== req.authenticatedDid) {
+    res.status(403).json({ error: "Not authorized to view this history" });
+    return;
+  }
+
+  try {
+    // Get user's threads
+    const userThreads = await db
+      .select()
+      .from(threads)
+      .where(and(eq(threads.authorDid, req.params.did), isNull(threads.deletedAt)))
+      .orderBy(desc(threads.createdAt));
+
+    // Get user's comments with parent thread info
+    const userComments = await db
+      .select()
+      .from(comments)
+      .where(and(eq(comments.authorDid, req.params.did), isNull(comments.deletedAt)))
+      .orderBy(desc(comments.createdAt));
+
+    // Get parent thread info for comments
+    const threadIds = [...new Set(userComments.map(c => c.threadId))];
+    const parentThreads = threadIds.length > 0
+      ? await db
+          .select()
+          .from(threads)
+          .where(inArray(threads.id, threadIds))
+      : [];
+
+    const threadMap = new Map(parentThreads.map(t => [t.id, t]));
+
+    res.json({
+      threads: userThreads,
+      comments: userComments.map(c => ({
+        ...c,
+        parentThread: threadMap.get(c.threadId) || null,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching history:", error);
+    res.status(500).json({ error: "Failed to fetch history" });
+  }
+});
+
 // Get reactions for a subject (thread or comment)
 app.get("/api/reactions", async (req, res) => {
   const { subjectUri } = req.query;

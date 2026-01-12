@@ -11,7 +11,8 @@
     "language": "Language",
     "theme": "Theme",
     "menu": "Menu",
-    "noResults": "No results"
+    "noResults": "No results",
+    "history": "History"
   },
   "theme": {
     "light": "Light",
@@ -120,5 +121,10 @@
   },
   "reaction": {
     "notAvailable": "Reactions are not available for this post"
+  },
+  "history": {
+    "empty": "No post history",
+    "thread": "Thread",
+    "comment": "Comment"
   }
 }

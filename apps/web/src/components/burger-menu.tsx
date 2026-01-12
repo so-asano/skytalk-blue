@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Menu, LogIn, LogOut, Loader2, Bell } from "lucide-react";
+import { Menu, LogIn, LogOut, Loader2, Bell, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -109,6 +109,19 @@ export function BurgerMenu({
               >
                 <Bell className="w-4 h-4" />
                 <span>{t("notifications.count").replace("{count}", String(notificationCount))}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (pathname === "/history") {
+                    window.location.reload();
+                  } else {
+                    router.push("/history");
+                  }
+                }}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <History className="w-4 h-4" />
+                <span>{t("common.history")}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
