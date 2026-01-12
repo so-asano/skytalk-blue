@@ -282,6 +282,11 @@ function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: O
           return <BlueskyEmbed key={url} handle={bskyInfo.handle} rkey={bskyInfo.rkey} />;
         }
 
+        // Skip Bluesky profile URLs (mentions)
+        if (url.includes("bsky.app/profile/") && !url.includes("/post/")) {
+          return null;
+        }
+
         // Otherwise show OGP card
         const data = ogpMap[url];
         if (!data) return null;
