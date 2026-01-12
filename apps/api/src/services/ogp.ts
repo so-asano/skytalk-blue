@@ -15,6 +15,7 @@ const CACHE_TTL = 24 * 60 * 60 * 1000; // 1 day
 // Extract URLs from text
 export function extractUrls(text: string | null | undefined): string[] {
   if (!text) return [];
+  // eslint-disable-next-line no-useless-escape
   const urlRegex = /https?:\/\/[^\s<>\[\]()'"]+/g;
   const matches = text.match(urlRegex) || [];
   return [...new Set(matches)];
