@@ -165,6 +165,8 @@ function BlueskyEmbed({ handle, rkey }: { handle: string; rkey: string }) {
   const [did, setDid] = useState<string | null>(
     handle.startsWith("did:") ? handle : null
   );
+  const [height, setHeight] = useState(200);
+  const embedId = `bsky-${did}-${rkey}`;
 
   useEffect(() => {
     // Resolve handle to DID if needed
@@ -178,6 +180,21 @@ function BlueskyEmbed({ handle, rkey }: { handle: string; rkey: string }) {
     }
   }, [handle]);
 
+  useEffect(() => {
+    // Listen for height messages from the embed iframe
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== "https://embed.bsky.app") return;
+      const data = event.data;
+      // Bluesky embed sends { id, height }
+      if (data?.id === embedId && typeof data?.height === "number") {
+        setHeight(data.height + 2); // Add small buffer
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [embedId]);
+
   if (!did) {
     return (
       <div className="mt-3 max-w-md border rounded-lg p-4 bg-muted/30">
@@ -189,7 +206,6 @@ function BlueskyEmbed({ handle, rkey }: { handle: string; rkey: string }) {
     );
   }
 
-  const embedId = `bsky-${did}-${rkey}`;
   const embedUrl = `https://embed.bsky.app/embed/${did}/app.bsky.feed.post/${rkey}?id=${embedId}`;
 
   return (
@@ -201,7 +217,7 @@ function BlueskyEmbed({ handle, rkey }: { handle: string; rkey: string }) {
         frameBorder={0}
         scrolling="no"
         className="border-none block"
-        style={{ minHeight: 200 }}
+        style={{ height }}
         title="Bluesky post"
       />
     </div>
