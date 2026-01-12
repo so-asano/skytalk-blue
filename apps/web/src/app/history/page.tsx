@@ -62,26 +62,7 @@ export default function HistoryPage() {
         }
 
         const data = await res.json();
-
-        // Combine threads and comments into a single list
-        const threadItems: HistoryItem[] = data.threads.map((t: Thread) => ({
-          type: "thread" as const,
-          createdAt: t.createdAt,
-          thread: t,
-        }));
-
-        const commentItems: HistoryItem[] = data.comments.map((c: Comment) => ({
-          type: "comment" as const,
-          createdAt: c.createdAt,
-          comment: c,
-        }));
-
-        // Sort by createdAt DESC
-        const combined = [...threadItems, ...commentItems].sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-
-        setItems(combined);
+        setItems(data.items);
       } catch (error) {
         console.error("Error fetching history:", error);
       } finally {
@@ -128,9 +109,6 @@ export default function HistoryPage() {
                   onClick={() => router.push(`/${thread.channelId}/${thread.id}`)}
                 >
                   <CardContent className="py-5 px-5">
-                    <div className="text-xs text-muted-foreground mb-2">
-                      {t("history.thread")}
-                    </div>
                     <h2 className="text-xl font-bold leading-relaxed mb-2">
                       {thread.title}
                     </h2>
@@ -171,14 +149,6 @@ export default function HistoryPage() {
                   }}
                 >
                   <CardContent className="py-5 px-5">
-                    <div className="text-xs text-muted-foreground mb-2">
-                      {t("history.comment")}
-                      {parentThread && (
-                        <span className="ml-2">
-                          → {parentThread.title}
-                        </span>
-                      )}
-                    </div>
                     <div className="text-sm text-muted-foreground mb-3">
                       {formatDate(comment.createdAt, locale)}
                     </div>

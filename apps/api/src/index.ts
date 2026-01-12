@@ -618,7 +618,7 @@ app.put("/api/notifications/:did/read-all", requireSiteAuth, requireUserAuth, as
   }
 });
 
-// Get user's post history (threads and comments)
+// Get user's post history (threads and comments combined, sorted by createdAt DESC)
 app.get("/api/history/:did", requireSiteAuth, requireUserAuth, async (req: AuthenticatedRequest, res) => {
   // Verify user is fetching their own history
   if (req.params.did !== req.authenticatedDid) {
@@ -631,15 +631,13 @@ app.get("/api/history/:did", requireSiteAuth, requireUserAuth, async (req: Authe
     const userThreads = await db
       .select()
       .from(threads)
-      .where(and(eq(threads.authorDid, req.params.did), isNull(threads.deletedAt)))
-      .orderBy(desc(threads.createdAt));
+      .where(and(eq(threads.authorDid, req.params.did), isNull(threads.deletedAt)));
 
-    // Get user's comments with parent thread info
+    // Get user's comments
     const userComments = await db
       .select()
       .from(comments)
-      .where(and(eq(comments.authorDid, req.params.did), isNull(comments.deletedAt)))
-      .orderBy(desc(comments.createdAt));
+      .where(and(eq(comments.authorDid, req.params.did), isNull(comments.deletedAt)));
 
     // Get parent thread info for comments
     const threadIds = [...new Set(userComments.map(c => c.threadId))];
@@ -652,13 +650,24 @@ app.get("/api/history/:did", requireSiteAuth, requireUserAuth, async (req: Authe
 
     const threadMap = new Map(parentThreads.map(t => [t.id, t]));
 
-    res.json({
-      threads: userThreads,
-      comments: userComments.map(c => ({
-        ...c,
-        parentThread: threadMap.get(c.threadId) || null,
+    // Combine and sort by createdAt DESC
+    const items = [
+      ...userThreads.map(t => ({
+        type: "thread" as const,
+        createdAt: t.createdAt,
+        thread: t,
       })),
-    });
+      ...userComments.map(c => ({
+        type: "comment" as const,
+        createdAt: c.createdAt,
+        comment: {
+          ...c,
+          parentThread: threadMap.get(c.threadId) || null,
+        },
+      })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.json({ items });
   } catch (error) {
     console.error("Error fetching history:", error);
     res.status(500).json({ error: "Failed to fetch history" });
