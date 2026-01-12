@@ -85,6 +85,7 @@ interface ReactionButtonsProps {
 // Extract URLs from text
 function extractUrls(text: string | null | undefined): string[] {
   if (!text) return [];
+  // eslint-disable-next-line no-useless-escape
   const urlRegex = /https?:\/\/[^\s<>\[\]()'"]+/g;
   const matches = text.match(urlRegex) || [];
   return [...new Set(matches)];
