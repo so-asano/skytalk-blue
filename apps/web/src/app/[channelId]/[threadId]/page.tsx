@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, notFound } from "next/navigation";
-import { Loader2, Reply, Trash2 } from "lucide-react";
+import { Loader2, Reply, Trash2, Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { useAuth, authenticatedFetch } from "@/lib/auth";
 import { getHandlesByDids, getDidsByHandles, extractMentions, replaceMentionsWithMap } from "@/lib/bsky";
 import { formatDate } from "@/lib/utils";
 import { EmojiPickerButton } from "@/components/emoji-picker-button";
+import { ZoomableImage } from "@/components/zoomable-image";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -61,6 +62,13 @@ interface Thread {
   atUri: string;
   cid?: string;
   reactions?: Reactions;
+  blobs?: BlobRef[];
+}
+
+interface BlobRef {
+  ref: { $link: string };
+  mimeType: string;
+  size: number;
 }
 
 interface Comment {
@@ -73,6 +81,7 @@ interface Comment {
   atUri: string;
   cid?: string;
   reactions?: Reactions;
+  blobs?: BlobRef[];
 }
 
 interface ReactionButtonsProps {
@@ -296,6 +305,33 @@ function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: O
   );
 }
 
+// Blob display component
+function BlobDisplay({ blobs, authorDid }: { blobs?: BlobRef[]; authorDid: string }) {
+  if (!blobs || blobs.length === 0) return null;
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {blobs.map((blob, index) => {
+        const blobUrl = `https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(authorDid)}&cid=${encodeURIComponent(blob.ref.$link)}`;
+
+        if (blob.mimeType.startsWith("image/")) {
+          return <ZoomableImage key={index} src={blobUrl} />;
+        }
+
+        if (blob.mimeType.startsWith("audio/")) {
+          return (
+            <audio key={index} controls className="max-w-md">
+              <source src={blobUrl} type={blob.mimeType} />
+            </audio>
+          );
+        }
+
+        return null;
+      })}
+    </div>
+  );
+}
+
 function ReactionButtons({ reactions, userDid, onReactionChange, disabled }: ReactionButtonsProps) {
   const entries = Object.entries(reactions).filter(([, dids]) => dids.length > 0);
 
@@ -353,8 +389,11 @@ export default function ThreadPage() {
   const [deleting, setDeleting] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
   const [reactionLoading, setReactionLoading] = useState<string | null>(null); // subjectUri being processed
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const toastIdRef = useRef<string | number | null>(null);
   const editorRef = useRef<MentionTextareaRef>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get CID from PDS for a record
   const getCid = async (atUri: string): Promise<string | null> => {
@@ -665,12 +704,35 @@ export default function ThreadPage() {
 
     setPosting(true);
     try {
+      // Upload blob if selected
+      let blobs: Array<{ ref: { $link: string }; mimeType: string; size: number }> = [];
+      if (selectedFile) {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const uploadResult = await agent.uploadBlob(uint8Array, {
+          encoding: selectedFile.type,
+        });
+        blobs = [{
+          ref: { $link: uploadResult.data.blob.ref.toString() },
+          mimeType: selectedFile.type,
+          size: selectedFile.size,
+        }];
+      }
+
       // Create record on PDS
-      const record = {
+      const record: {
+        threadUri: string;
+        text: string;
+        createdAt: string;
+        blobs?: typeof blobs;
+      } = {
         threadUri: thread.atUri,
         text: newCommentPlain,
         createdAt: new Date().toISOString(),
       };
+      if (blobs.length > 0) {
+        record.blobs = blobs;
+      }
 
       const result = await agent.com.atproto.repo.createRecord({
         repo: user.did,
@@ -685,6 +747,7 @@ export default function ThreadPage() {
           text: newCommentPlain,
           authorDid: user.did,
           atUri: result.data.uri,
+          blobs,
         }),
       });
 
@@ -713,6 +776,7 @@ export default function ThreadPage() {
       setNewComment("");
       setNewCommentPlain("");
       editorRef.current?.setContent("");
+      handleRemoveFile();
     } catch (error) {
       console.error("Error posting comment:", error);
     } finally {
@@ -792,6 +856,72 @@ export default function ThreadPage() {
     }, 100);
   };
 
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm"];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (filePreview) {
+      URL.revokeObjectURL(filePreview);
+      setFilePreview(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const processFile = (file: File) => {
+    // Validate type
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error(t("post.invalidFileType"));
+      return;
+    }
+
+    // Validate size
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(t("post.fileTooLarge"));
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Create preview for images
+    if (file.type.startsWith("image/")) {
+      const url = URL.createObjectURL(file);
+      setFilePreview(url);
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (const item of items) {
+      if (item.kind === "file") {
+        const file = item.getAsFile();
+        if (file) {
+          processFile(file);
+          break;
+        }
+      }
+    }
+  };
+
   const channelName = channel
     ? locale === "ja"
       ? channel.nameJa
@@ -857,12 +987,13 @@ export default function ThreadPage() {
                   <Markdown>{thread.text}</Markdown>
                 </div>
               )}
+              <BlobDisplay blobs={thread.blobs} authorDid={thread.authorDid} />
               <OgpCards text={thread.text} ogpMap={ogpMap} />
               <a
                 href={`https://pdsls.dev/${thread.atUri}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-[10px] text-muted-foreground/40 font-mono truncate hover:underline"
+                className="block mt-4 text-[10px] text-muted-foreground/40 font-mono truncate hover:underline"
               >
                 {thread.atUri}
               </a>
@@ -942,6 +1073,7 @@ export default function ThreadPage() {
                     <div className="prose prose-sm max-w-none">
                       <Markdown>{c.text}</Markdown>
                     </div>
+                    <BlobDisplay blobs={c.blobs} authorDid={c.authorDid} />
                     <OgpCards text={c.text} ogpMap={ogpMap} />
                     <a
                       href={`https://pdsls.dev/${c.atUri}`}
@@ -971,7 +1103,11 @@ export default function ThreadPage() {
           )}
 
           {user ? (
-            <Card>
+            <Card
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+              onPaste={handlePaste}
+            >
               <CardContent className="py-4 space-y-4">
                 <div className="flex border-b">
                   <button
@@ -1022,7 +1158,30 @@ export default function ThreadPage() {
                     )}
                   </div>
                 )}
-                <div className="flex justify-start">
+                {selectedFile && (
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                    {filePreview ? (
+                      <img src={filePreview} alt="" className="w-16 h-16 object-cover rounded" />
+                    ) : (
+                      <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
+                        {selectedFile.type.split("/")[1]}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{selectedFile.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleRemoveFile}
+                      className="p-1 hover:bg-muted rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                <div className="flex justify-start gap-2">
                   <Button
                     onClick={handlePostComment}
                     disabled={posting || !newCommentPlain.trim()}
@@ -1032,6 +1191,21 @@ export default function ThreadPage() {
                     ) : (
                       <>{t("post.submit")}</>
                     )}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/ogg,audio/wav,audio/webm"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={posting}
+                  >
+                    <Paperclip className="w-4 h-4" />
                   </Button>
                 </div>
               </CardContent>
