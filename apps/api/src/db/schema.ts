@@ -8,6 +8,12 @@ export const channels = pgTable("channels", {
   deletedAt: timestamp("deleted_at"),
 });
 
+interface BlobRef {
+  ref: { $link: string };
+  mimeType: string;
+  size: number;
+}
+
 export const threads = pgTable("threads", {
   id: text("id").primaryKey(), // TID
   atUri: text("at_uri").notNull(),
@@ -19,6 +25,7 @@ export const threads = pgTable("threads", {
   authorDid: text("author_did").notNull(),
   commentCount: integer("comment_count").default(0).notNull(),
   reactions: jsonb("reactions").$type<Record<string, string[]>>().default({}),
+  blobs: jsonb("blobs").$type<BlobRef[]>().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
@@ -33,6 +40,7 @@ export const comments = pgTable("comments", {
   authorDid: text("author_did").notNull(),
   text: text("text").notNull(),
   reactions: jsonb("reactions").$type<Record<string, string[]>>().default({}),
+  blobs: jsonb("blobs").$type<BlobRef[]>().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
