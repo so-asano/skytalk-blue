@@ -138,7 +138,11 @@ export const MentionTextarea = forwardRef<MentionTextareaRef, MentionTextareaPro
           orderedList: false,
           blockquote: false,
           codeBlock: false,
+          code: false,
           horizontalRule: false,
+          bold: false,
+          italic: false,
+          strike: false,
         }),
         Placeholder.configure({
           placeholder: placeholder || "",
