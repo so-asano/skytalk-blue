@@ -22,7 +22,8 @@
         },
         {
           "type": "permission",
-          "resource": "blob"
+          "resource": "blob",
+          "accept": ["image/*", "audio/*"]
         }
       ]
     }
