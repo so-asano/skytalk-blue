@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "blue.skytalk.permissionSet",
+  "id": "blue.skytalk.talk.permissionSet",
   "defs": {
     "main": {
       "type": "permission-set",
