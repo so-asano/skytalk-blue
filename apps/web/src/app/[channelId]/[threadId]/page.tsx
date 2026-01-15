@@ -21,10 +21,11 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
 import { useAuth, authenticatedFetch } from "@/lib/auth";
-import { getHandlesByDids, getDidsByHandles, extractMentions, replaceMentionsWithMap } from "@/lib/bsky";
+import { getHandlesByDids, getDidsByHandles, extractMentions, replaceMentionsWithMap, getPdsEndpoint } from "@/lib/bsky";
 import { formatDate } from "@/lib/utils";
 import { EmojiPickerButton } from "@/components/emoji-picker-button";
 import { ZoomableImage } from "@/components/zoomable-image";
+import { AudioPlayer } from "@/components/audio-player";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -307,23 +308,27 @@ function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: O
 
 // Blob display component
 function BlobDisplay({ blobs, authorDid }: { blobs?: BlobRef[]; authorDid: string }) {
-  if (!blobs || blobs.length === 0) return null;
+  const [pdsEndpoint, setPdsEndpoint] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (blobs && blobs.length > 0) {
+      getPdsEndpoint(authorDid).then(setPdsEndpoint);
+    }
+  }, [authorDid, blobs]);
+
+  if (!blobs || blobs.length === 0 || !pdsEndpoint) return null;
 
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       {blobs.map((blob, index) => {
-        const blobUrl = `https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(authorDid)}&cid=${encodeURIComponent(blob.ref.$link)}`;
+        const blobUrl = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(authorDid)}&cid=${encodeURIComponent(blob.ref.$link)}`;
 
         if (blob.mimeType.startsWith("image/")) {
           return <ZoomableImage key={index} src={blobUrl} />;
         }
 
         if (blob.mimeType.startsWith("audio/")) {
-          return (
-            <audio key={index} controls className="max-w-md">
-              <source src={blobUrl} type={blob.mimeType} />
-            </audio>
-          );
+          return <AudioPlayer key={index} src={blobUrl} mimeType={blob.mimeType} className="w-full max-w-md" />;
         }
 
         return null;
@@ -705,14 +710,19 @@ export default function ThreadPage() {
     setPosting(true);
     try {
       // Upload blob if selected
-      let blobs: Array<{ ref: { $link: string }; mimeType: string; size: number }> = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let blobs: any[] = [];
+      let blobsForApi: Array<{ ref: { $link: string }; mimeType: string; size: number }> = [];
       if (selectedFile) {
         const arrayBuffer = await selectedFile.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
         const uploadResult = await agent.uploadBlob(uint8Array, {
           encoding: selectedFile.type,
         });
-        blobs = [{
+        // Use the raw BlobRef for PDS record
+        blobs = [uploadResult.data.blob];
+        // Store serialized version for our API
+        blobsForApi = [{
           ref: { $link: uploadResult.data.blob.ref.toString() },
           mimeType: selectedFile.type,
           size: selectedFile.size,
@@ -747,7 +757,7 @@ export default function ThreadPage() {
           text: newCommentPlain,
           authorDid: user.did,
           atUri: result.data.uri,
-          blobs,
+          blobs: blobsForApi,
         }),
       });
 

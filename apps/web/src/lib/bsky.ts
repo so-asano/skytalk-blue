@@ -1,5 +1,56 @@
 const BSKY_PUBLIC_API = "https://public.api.bsky.app/xrpc";
 
+// Cache for PDS endpoints
+const pdsCache = new Map<string, string>();
+
+// Get the PDS service endpoint for a DID
+export async function getPdsEndpoint(did: string): Promise<string> {
+  // Check cache first
+  const cached = pdsCache.get(did);
+  if (cached) return cached;
+
+  try {
+    let didDoc;
+
+    if (did.startsWith("did:plc:")) {
+      // Resolve via plc.directory
+      const res = await fetch(`https://plc.directory/${did}`);
+      if (!res.ok) throw new Error("Failed to resolve DID");
+      didDoc = await res.json();
+    } else if (did.startsWith("did:web:")) {
+      // Resolve via .well-known
+      const domain = did.replace("did:web:", "");
+      const res = await fetch(`https://${domain}/.well-known/did.json`);
+      if (!res.ok) throw new Error("Failed to resolve DID");
+      didDoc = await res.json();
+    } else {
+      throw new Error("Unsupported DID method");
+    }
+
+    // Find the atproto_pds service
+    const pdsService = didDoc.service?.find(
+      (s: { id: string; type: string }) =>
+        s.id === "#atproto_pds" || s.type === "AtprotoPersonalDataServer"
+    );
+
+    if (pdsService?.serviceEndpoint) {
+      pdsCache.set(did, pdsService.serviceEndpoint);
+      return pdsService.serviceEndpoint;
+    }
+  } catch (e) {
+    console.error("Failed to get PDS endpoint:", e);
+  }
+
+  // Fallback to bsky.social
+  return "https://bsky.social";
+}
+
+// Get blob URL for a DID and CID
+export async function getBlobUrl(did: string, cid: string): Promise<string> {
+  const pds = await getPdsEndpoint(did);
+  return `${pds}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+}
+
 async function fetchProfiles(dids: string[]): Promise<Map<string, string>> {
   const results = new Map<string, string>();
   if (dids.length === 0) return results;

@@ -214,14 +214,19 @@ export default function ChannelPage() {
     setCreating(true);
     try {
       // Upload blob if selected
-      let blobs: Array<{ ref: { $link: string }; mimeType: string; size: number }> = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let blobs: any[] = [];
+      let blobsForApi: Array<{ ref: { $link: string }; mimeType: string; size: number }> = [];
       if (selectedFile) {
         const arrayBuffer = await selectedFile.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
         const uploadResult = await agent.uploadBlob(uint8Array, {
           encoding: selectedFile.type,
         });
-        blobs = [{
+        // Use the raw BlobRef for PDS record
+        blobs = [uploadResult.data.blob];
+        // Store serialized version for our API
+        blobsForApi = [{
           ref: { $link: uploadResult.data.blob.ref.toString() },
           mimeType: selectedFile.type,
           size: selectedFile.size,
@@ -234,7 +239,8 @@ export default function ChannelPage() {
         title: string;
         text?: string;
         createdAt: string;
-        blobs?: typeof blobs;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        blobs?: any[];
       } = {
         channelId,
         title: newThreadTitle,
@@ -260,7 +266,7 @@ export default function ChannelPage() {
           channelId,
           authorDid: user.did,
           atUri: result.data.uri,
-          blobs,
+          blobs: blobsForApi,
         }),
       });
 
