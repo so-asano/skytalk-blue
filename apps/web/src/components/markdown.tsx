@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { ZoomableImage } from "@/components/zoomable-image";
 
 interface MarkdownProps {
   children: string;
@@ -38,6 +39,10 @@ export function Markdown({ children, className }: MarkdownProps) {
                 {children}
               </a>
             );
+          },
+          img({ src, alt }) {
+            if (typeof src !== "string") return null;
+            return <ZoomableImage src={src} alt={alt} inline />;
           },
           pre({ children }) {
             return <>{children}</>;

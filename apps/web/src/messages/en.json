@@ -96,7 +96,9 @@
     "preview": "Preview",
     "nothingToPreview": "Nothing to preview",
     "submit": "Submit",
-    "reply": "Reply"
+    "reply": "Reply",
+    "invalidFileType": "This file type is not supported",
+    "fileTooLarge": "File size must be 10MB or less"
   },
   "footer": {
     "terms": "Terms of Use",

@@ -5,7 +5,7 @@ import { useParams, notFound } from "next/navigation";
 import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Paperclip, X } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { MentionTextarea } from "@/components/mention-textarea";
 import { Input } from "@/components/ui/input";
@@ -48,8 +48,42 @@ export default function ChannelPage() {
   const [editorHeight, setEditorHeight] = useState(90);
   const [contentTab, setContentTab] = useState<"write" | "preview">("write");
   const [creating, setCreating] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const toastIdRef = useRef<string | number | null>(null);
   const newestIdRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm"];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const processFile = (file: File) => {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error(t("post.invalidFileType"));
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(t("post.fileTooLarge"));
+      return;
+    }
+    setSelectedFile(file);
+    if (file.type.startsWith("image/")) {
+      setFilePreview(URL.createObjectURL(file));
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (filePreview) {
+      URL.revokeObjectURL(filePreview);
+      setFilePreview(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const showNewThreads = () => {
     if (pendingThreads.length === 0) return;
@@ -179,13 +213,43 @@ export default function ChannelPage() {
 
     setCreating(true);
     try {
+      // Upload blob if selected
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let blobs: any[] = [];
+      let blobsForApi: Array<{ ref: { $link: string }; mimeType: string; size: number }> = [];
+      if (selectedFile) {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const uploadResult = await agent.uploadBlob(uint8Array, {
+          encoding: selectedFile.type,
+        });
+        // Use the raw BlobRef for PDS record
+        blobs = [uploadResult.data.blob];
+        // Store serialized version for our API
+        blobsForApi = [{
+          ref: { $link: uploadResult.data.blob.ref.toString() },
+          mimeType: selectedFile.type,
+          size: selectedFile.size,
+        }];
+      }
+
       // Create record on PDS
-      const record = {
+      const record: {
+        channelId: string;
+        title: string;
+        text?: string;
+        createdAt: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        blobs?: any[];
+      } = {
         channelId,
         title: newThreadTitle,
         text: newThreadContentPlain || undefined,
         createdAt: new Date().toISOString(),
       };
+      if (blobs.length > 0) {
+        record.blobs = blobs;
+      }
 
       const result = await agent.com.atproto.repo.createRecord({
         repo: user.did,
@@ -202,6 +266,7 @@ export default function ChannelPage() {
           channelId,
           authorDid: user.did,
           atUri: result.data.uri,
+          blobs: blobsForApi,
         }),
       });
 
@@ -224,6 +289,7 @@ export default function ChannelPage() {
       setNewThreadContent("");
       setNewThreadContentPlain("");
       setAccordionValue("");
+      handleRemoveFile();
     } catch (error) {
       console.error("Error creating thread:", error);
     } finally {
@@ -305,9 +371,50 @@ export default function ChannelPage() {
                   )}
                 </div>
               )}
-              <div className="flex">
+              {selectedFile && (
+                <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                  {filePreview ? (
+                    <img src={filePreview} alt="" className="w-16 h-16 object-cover rounded" />
+                  ) : (
+                    <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
+                      {selectedFile.type.split("/")[1]}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{selectedFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRemoveFile}
+                    className="p-1 hover:bg-muted rounded"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-2">
                 <Button onClick={handleCreateThread} disabled={creating || !newThreadTitle.trim() || !newThreadContentPlain.trim()}>
                   {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.create")}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/ogg,audio/wav,audio/webm"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) processFile(file);
+                  }}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={creating}
+                >
+                  <Paperclip className="w-4 h-4" />
                 </Button>
               </div>
             </AccordionContent>

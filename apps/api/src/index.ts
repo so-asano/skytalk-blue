@@ -337,7 +337,7 @@ app.get("/api/threads/:id", async (req, res) => {
 
 // Create a thread
 app.post("/api/threads", requireSiteAuth, requireUserAuth, async (req: AuthenticatedRequest, res) => {
-  const { title, text, channelId, authorDid, atUri } = req.body;
+  const { title, text, channelId, authorDid, atUri, blobs } = req.body;
 
   if (!title || !channelId || !authorDid || !atUri) {
     res.status(400).json({ error: "Missing required fields" });
@@ -364,6 +364,7 @@ app.post("/api/threads", requireSiteAuth, requireUserAuth, async (req: Authentic
         text,
         authorDid,
         commentCount: 0,
+        blobs: blobs || [],
       })
       .returning();
 
@@ -417,7 +418,7 @@ app.delete("/api/threads/:id", requireSiteAuth, requireUserAuth, async (req: Aut
 
 // Add a comment to a thread
 app.post("/api/threads/:id/comments", requireSiteAuth, requireUserAuth, async (req: AuthenticatedRequest, res) => {
-  const { text, authorDid, atUri } = req.body;
+  const { text, authorDid, atUri, blobs } = req.body;
 
   if (!text || !authorDid || !atUri) {
     res.status(400).json({ error: "Missing required fields" });
@@ -453,6 +454,7 @@ app.post("/api/threads/:id/comments", requireSiteAuth, requireUserAuth, async (r
         text,
         authorDid,
         atUri,
+        blobs: blobs || [],
       })
       .returning();
 

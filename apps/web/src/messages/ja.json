@@ -96,7 +96,9 @@
     "preview": "プレビュー",
     "nothingToPreview": "プレビューする内容がありません",
     "submit": "書き込む",
-    "reply": "返信"
+    "reply": "返信",
+    "invalidFileType": "このファイル形式はサポートされていません",
+    "fileTooLarge": "ファイルサイズは10MB以下にしてください"
   },
   "footer": {
     "terms": "利用規約",

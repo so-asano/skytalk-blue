@@ -34,6 +34,16 @@
             "type": "string",
             "format": "datetime",
             "description": "Timestamp of thread creation"
+          },
+          "blobs": {
+            "type": "array",
+            "maxLength": 1,
+            "items": {
+              "type": "blob",
+              "accept": ["image/*", "audio/*"],
+              "maxSize": 10000000
+            },
+            "description": "Optional attached media (image or audio)"
           }
         }
       }
