@@ -9,6 +9,18 @@ export const LEXICONS = {
 export type LexiconType = (typeof LEXICONS)[keyof typeof LEXICONS];
 
 /**
+ * Zod schema for blob reference
+ */
+export const BlobRefSchema = z.object({
+  $type: z.literal("blob").optional(),
+  ref: z.object({ $link: z.string() }),
+  mimeType: z.string(),
+  size: z.number(),
+});
+
+export type BlobRef = z.infer<typeof BlobRefSchema>;
+
+/**
  * Zod schema for blue.skytalk.talk.thread
  */
 export const ThreadRecordSchema = z.object({
@@ -22,6 +34,11 @@ export const ThreadRecordSchema = z.object({
     .max(4000)
     .optional()
     .describe("The text content of the thread"),
+  blobs: z
+    .array(BlobRefSchema)
+    .max(1)
+    .optional()
+    .describe("Media attachments"),
   createdAt: z.string().datetime().describe("Timestamp of thread creation"),
 });
 
@@ -41,6 +58,11 @@ export const CommentRecordSchema = z.object({
     .string()
     .max(4000)
     .describe("The content of the post"),
+  blobs: z
+    .array(BlobRefSchema)
+    .max(1)
+    .optional()
+    .describe("Media attachments"),
   createdAt: z.string().datetime().describe("Timestamp of post creation"),
 });
 
