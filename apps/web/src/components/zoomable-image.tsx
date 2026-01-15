@@ -8,13 +8,17 @@ import {
 
 interface ZoomableImageProps {
   src: string;
+  thumbSrc?: string;
   alt?: string;
   inline?: boolean;
 }
 
-export function ZoomableImage({ src, alt, inline = false }: ZoomableImageProps) {
+export function ZoomableImage({ src, thumbSrc, alt, inline = false }: ZoomableImageProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Use thumbnail for preview if provided, otherwise use original
+  const previewSrc = thumbSrc || src;
 
   return (
     <>
@@ -27,7 +31,7 @@ export function ZoomableImage({ src, alt, inline = false }: ZoomableImageProps) 
         className={`${inline ? "inline-block align-bottom" : "block"} w-24 h-24 rounded-lg border overflow-hidden cursor-zoom-in group`}
       >
         <img
-          src={src}
+          src={previewSrc}
           alt={alt || ""}
           className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
           loading="lazy"
