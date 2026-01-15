@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { ScrollToBottom } from "@/components/scroll-to-bottom";
 
 const baseUrl = process.env.NEXT_PUBLIC_URL || "https://skytalk.blue";
 
@@ -65,6 +66,7 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+          <ScrollToBottom />
         </Providers>
       </body>
     </html>
