@@ -16,6 +16,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.969.0",
     "@skyware/jetstream": "^0.2.5",
     "cheerio": "^1.1.2",
     "cors": "^2.8.5",
@@ -23,6 +24,7 @@
     "drizzle-orm": "^0.45.1",
     "express": "^4.21.2",
     "postgres": "^3.4.8",
+    "sharp": "^0.34.5",
     "zod": "^4.3.5"
   },
   "devDependencies": {
@@ -31,6 +33,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.5",
     "@types/pg": "^8.16.0",
+    "@types/sharp": "^0.32.0",
     "@typescript-eslint/eslint-plugin": "^8.52.0",
     "@typescript-eslint/parser": "^8.52.0",
     "dotenv-cli": "^11.0.0",

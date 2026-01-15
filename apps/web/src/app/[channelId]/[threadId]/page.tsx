@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
 import { useAuth, authenticatedFetch } from "@/lib/auth";
-import { getHandlesByDids, getDidsByHandles, extractMentions, replaceMentionsWithMap, getPdsEndpoint } from "@/lib/bsky";
+import { getHandlesByDids, getDidsByHandles, extractMentions, replaceMentionsWithMap } from "@/lib/bsky";
 import { formatDate } from "@/lib/utils";
 import { EmojiPickerButton } from "@/components/emoji-picker-button";
 import { ZoomableImage } from "@/components/zoomable-image";
@@ -308,23 +308,17 @@ function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: O
 
 // Blob display component
 function BlobDisplay({ blobs, authorDid }: { blobs?: BlobRef[]; authorDid: string }) {
-  const [pdsEndpoint, setPdsEndpoint] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (blobs && blobs.length > 0) {
-      getPdsEndpoint(authorDid).then(setPdsEndpoint);
-    }
-  }, [authorDid, blobs]);
-
-  if (!blobs || blobs.length === 0 || !pdsEndpoint) return null;
+  if (!blobs || blobs.length === 0) return null;
 
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       {blobs.map((blob, index) => {
-        const blobUrl = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(authorDid)}&cid=${encodeURIComponent(blob.ref.$link)}`;
+        // Use API image proxy endpoint
+        const blobUrl = `${API_URL}/api/images/${encodeURIComponent(authorDid)}/${encodeURIComponent(blob.ref.$link)}`;
+        const thumbUrl = `${blobUrl}?size=thumb`;
 
         if (blob.mimeType.startsWith("image/")) {
-          return <ZoomableImage key={index} src={blobUrl} />;
+          return <ZoomableImage key={index} src={blobUrl} thumbSrc={thumbUrl} />;
         }
 
         if (blob.mimeType.startsWith("audio/")) {

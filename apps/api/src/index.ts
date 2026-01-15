@@ -8,6 +8,7 @@ import { eq, desc, isNull, and, gt, count, inArray } from "drizzle-orm";
 import { jetstreamService } from "./services/jetstream.js";
 import { createSiteAuthMiddleware, requireUserAuth, AuthenticatedRequest } from "./auth.js";
 import { extractUrls, getOgpBatch } from "./services/ogp.js";
+import { getImage, ImageSize } from "./services/images.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -169,6 +170,39 @@ app.get("/api/health", (_req, res) => {
     timestamp: new Date().toISOString(),
     jetstream: jetstreamStatus,
   });
+});
+
+// Image proxy with optional R2 caching
+// Query params: size=original|thumb (default: original)
+app.get("/api/images/:did/:cid", async (req, res) => {
+  const { did, cid } = req.params;
+  const size = (req.query.size as ImageSize) || "original";
+
+  if (!["original", "thumb"].includes(size)) {
+    res.status(400).json({ error: "Invalid size parameter" });
+    return;
+  }
+
+  try {
+    const result = await getImage(did, cid, size);
+
+    if (!result) {
+      res.status(404).json({ error: "Image not found" });
+      return;
+    }
+
+    // Set cache headers
+    res.set({
+      "Content-Type": result.contentType,
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "X-Cache": result.cacheHit ? "HIT" : "MISS",
+    });
+
+    res.send(result.buffer);
+  } catch (error) {
+    console.error("Error fetching image:", error);
+    res.status(500).json({ error: "Failed to fetch image" });
+  }
 });
 
 // Get all channels
