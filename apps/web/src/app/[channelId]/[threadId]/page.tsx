@@ -7,7 +7,10 @@ import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { MentionTextarea, MentionTextareaRef } from "@/components/mention-textarea";
+import {
+  MentionTextarea,
+  MentionTextareaRef,
+} from "@/components/mention-textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -21,11 +24,17 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
 import { useAuth, authenticatedFetch } from "@/lib/auth";
-import { getHandlesByDids, getDidsByHandles, extractMentions, replaceMentionsWithMap } from "@/lib/bsky";
+import {
+  getHandlesByDids,
+  getDidsByHandles,
+  extractMentions,
+  replaceMentionsWithMap,
+} from "@/lib/bsky";
 import { formatDate } from "@/lib/utils";
 import { EmojiPickerButton } from "@/components/emoji-picker-button";
 import { ZoomableImage } from "@/components/zoomable-image";
 import { AudioPlayer } from "@/components/audio-player";
+import { RecordButton } from "@/components/record-button";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -151,7 +160,9 @@ function YouTubeEmbed({ videoId }: { videoId: string }) {
 }
 
 // Extract Bluesky post info from URL
-function getBlueskyPostInfo(url: string): { handle: string; rkey: string } | null {
+function getBlueskyPostInfo(
+  url: string
+): { handle: string; rkey: string } | null {
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname.replace("www.", "");
@@ -265,7 +276,9 @@ function OgpCard({ data }: { data: OgpData }) {
           <p className="text-sm font-medium line-clamp-2">{data.title}</p>
         )}
         {data.description && (
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{data.description}</p>
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+            {data.description}
+          </p>
         )}
       </div>
     </a>
@@ -273,7 +286,13 @@ function OgpCard({ data }: { data: OgpData }) {
 }
 
 // OGP Cards for text content (with YouTube embed support)
-function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: OgpMap }) {
+function OgpCards({
+  text,
+  ogpMap,
+}: {
+  text: string | null | undefined;
+  ogpMap: OgpMap;
+}) {
   const urls = extractUrls(text);
   if (urls.length === 0) return null;
 
@@ -289,7 +308,13 @@ function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: O
         // Check if it's a Bluesky post URL
         const bskyInfo = getBlueskyPostInfo(url);
         if (bskyInfo) {
-          return <BlueskyEmbed key={url} handle={bskyInfo.handle} rkey={bskyInfo.rkey} />;
+          return (
+            <BlueskyEmbed
+              key={url}
+              handle={bskyInfo.handle}
+              rkey={bskyInfo.rkey}
+            />
+          );
         }
 
         // Skip Bluesky profile URLs (mentions)
@@ -307,22 +332,39 @@ function OgpCards({ text, ogpMap }: { text: string | null | undefined; ogpMap: O
 }
 
 // Blob display component
-function BlobDisplay({ blobs, authorDid }: { blobs?: BlobRef[]; authorDid: string }) {
+function BlobDisplay({
+  blobs,
+  authorDid,
+}: {
+  blobs?: BlobRef[];
+  authorDid: string;
+}) {
   if (!blobs || blobs.length === 0) return null;
 
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       {blobs.map((blob, index) => {
         // Use API image proxy endpoint
-        const blobUrl = `${API_URL}/api/images/${encodeURIComponent(authorDid)}/${encodeURIComponent(blob.ref.$link)}`;
+        const blobUrl = `${API_URL}/api/images/${encodeURIComponent(
+          authorDid
+        )}/${encodeURIComponent(blob.ref.$link)}`;
         const thumbUrl = `${blobUrl}?size=thumb`;
 
         if (blob.mimeType.startsWith("image/")) {
-          return <ZoomableImage key={index} src={blobUrl} thumbSrc={thumbUrl} />;
+          return (
+            <ZoomableImage key={index} src={blobUrl} thumbSrc={thumbUrl} />
+          );
         }
 
         if (blob.mimeType.startsWith("audio/")) {
-          return <AudioPlayer key={index} src={blobUrl} mimeType={blob.mimeType} className="w-full max-w-md" />;
+          return (
+            <AudioPlayer
+              key={index}
+              src={blobUrl}
+              mimeType={blob.mimeType}
+              className="w-full max-w-md"
+            />
+          );
         }
 
         return null;
@@ -331,8 +373,15 @@ function BlobDisplay({ blobs, authorDid }: { blobs?: BlobRef[]; authorDid: strin
   );
 }
 
-function ReactionButtons({ reactions, userDid, onReactionChange, disabled }: ReactionButtonsProps) {
-  const entries = Object.entries(reactions).filter(([, dids]) => dids.length > 0);
+function ReactionButtons({
+  reactions,
+  userDid,
+  onReactionChange,
+  disabled,
+}: ReactionButtonsProps) {
+  const entries = Object.entries(reactions).filter(
+    ([, dids]) => dids.length > 0
+  );
 
   if (entries.length === 0 && !userDid) return null;
 
@@ -343,13 +392,21 @@ function ReactionButtons({ reactions, userDid, onReactionChange, disabled }: Rea
         return (
           <button
             key={emoji}
-            onClick={() => !disabled && onReactionChange(emoji, isOwn ? "remove" : "add")}
+            onClick={() =>
+              !disabled && onReactionChange(emoji, isOwn ? "remove" : "add")
+            }
             disabled={disabled || !userDid}
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-colors ${
               isOwn
                 ? "bg-primary/10 border-primary/30 text-primary"
                 : "bg-muted/50 border-transparent hover:bg-muted"
-            } ${disabled ? "opacity-50 cursor-not-allowed" : userDid ? "cursor-pointer" : "cursor-default"}`}
+            } ${
+              disabled
+                ? "opacity-50 cursor-not-allowed"
+                : userDid
+                ? "cursor-pointer"
+                : "cursor-default"
+            }`}
           >
             <span>{emoji}</span>
             <span className="text-xs">{dids.length}</span>
@@ -390,6 +447,7 @@ export default function ThreadPage() {
   const [reactionLoading, setReactionLoading] = useState<string | null>(null); // subjectUri being processed
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [isTranscribed, setIsTranscribed] = useState(false);
   const toastIdRef = useRef<string | number | null>(null);
   const editorRef = useRef<MentionTextareaRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -402,7 +460,11 @@ export default function ThreadPage() {
       const repo = parts[0];
       const collection = parts[1];
       const rkey = parts[2];
-      const result = await agent.com.atproto.repo.getRecord({ repo, collection, rkey });
+      const result = await agent.com.atproto.repo.getRecord({
+        repo,
+        collection,
+        rkey,
+      });
       return result.data.cid || null;
     } catch (error) {
       console.error("Error getting CID:", error);
@@ -456,7 +518,10 @@ export default function ThreadPage() {
             const current = prev.reactions || {};
             const dids = current[emoji] || [];
             if (!dids.includes(user.did)) {
-              return { ...prev, reactions: { ...current, [emoji]: [...dids, user.did] } };
+              return {
+                ...prev,
+                reactions: { ...current, [emoji]: [...dids, user.did] },
+              };
             }
             return prev;
           });
@@ -467,7 +532,10 @@ export default function ThreadPage() {
                 const current = c.reactions || {};
                 const dids = current[emoji] || [];
                 if (!dids.includes(user.did)) {
-                  return { ...c, reactions: { ...current, [emoji]: [...dids, user.did] } };
+                  return {
+                    ...c,
+                    reactions: { ...current, [emoji]: [...dids, user.did] },
+                  };
                 }
               }
               return c;
@@ -476,11 +544,16 @@ export default function ThreadPage() {
         }
       } else {
         // Find the reaction to delete
-        const res = await fetch(`${API_URL}/api/reactions?subjectUri=${encodeURIComponent(subjectUri)}`);
+        const res = await fetch(
+          `${API_URL}/api/reactions?subjectUri=${encodeURIComponent(
+            subjectUri
+          )}`
+        );
         if (!res.ok) throw new Error("Failed to fetch reactions");
         const allReactions = await res.json();
         const myReaction = allReactions.find(
-          (r: { authorDid: string; emoji: string }) => r.authorDid === user.did && r.emoji === emoji
+          (r: { authorDid: string; emoji: string }) =>
+            r.authorDid === user.did && r.emoji === emoji
         );
 
         if (myReaction) {
@@ -493,9 +566,13 @@ export default function ThreadPage() {
           });
 
           // Delete from API
-          await authenticatedFetch(`${API_URL}/api/reactions/${myReaction.id}`, user.did, {
-            method: "DELETE",
-          });
+          await authenticatedFetch(
+            `${API_URL}/api/reactions/${myReaction.id}`,
+            user.did,
+            {
+              method: "DELETE",
+            }
+          );
 
           // Update local state
           if (subjectUri.includes("/blue.skytalk.talk.thread/")) {
@@ -516,7 +593,9 @@ export default function ThreadPage() {
               prev.map((c) => {
                 if (c.atUri === subjectUri) {
                   const current = c.reactions || {};
-                  const dids = (current[emoji] || []).filter((d) => d !== user.did);
+                  const dids = (current[emoji] || []).filter(
+                    (d) => d !== user.did
+                  );
                   const updated = { ...current };
                   if (dids.length > 0) {
                     updated[emoji] = dids;
@@ -641,9 +720,10 @@ export default function ThreadPage() {
           ...data.comments.map((c: Comment) => c.text),
         ].filter(Boolean) as string[];
         const allMentions = allTexts.flatMap(extractMentions);
-        const mentionDidMap = allMentions.length > 0
-          ? await getDidsByHandles(allMentions)
-          : new Map<string, string>();
+        const mentionDidMap =
+          allMentions.length > 0
+            ? await getDidsByHandles(allMentions)
+            : new Map<string, string>();
 
         // Replace mentions using the batched map
         const resolvedThreadText = data.thread.text
@@ -699,14 +779,19 @@ export default function ThreadPage() {
   }, []);
 
   const handlePostComment = async () => {
-    if (!user || !agent || !thread || !newCommentPlain.trim() || posting) return;
+    if (!user || !agent || !thread || !newCommentPlain.trim() || posting)
+      return;
 
     setPosting(true);
     try {
       // Upload blob if selected
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let blobs: any[] = [];
-      let blobsForApi: Array<{ ref: { $link: string }; mimeType: string; size: number }> = [];
+      let blobsForApi: Array<{
+        ref: { $link: string };
+        mimeType: string;
+        size: number;
+      }> = [];
       if (selectedFile) {
         const arrayBuffer = await selectedFile.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
@@ -716,11 +801,13 @@ export default function ThreadPage() {
         // Use the raw BlobRef for PDS record
         blobs = [uploadResult.data.blob];
         // Store serialized version for our API
-        blobsForApi = [{
-          ref: { $link: uploadResult.data.blob.ref.toString() },
-          mimeType: selectedFile.type,
-          size: selectedFile.size,
-        }];
+        blobsForApi = [
+          {
+            ref: { $link: uploadResult.data.blob.ref.toString() },
+            mimeType: selectedFile.type,
+            size: selectedFile.size,
+          },
+        ];
       }
 
       // Create record on PDS
@@ -745,15 +832,19 @@ export default function ThreadPage() {
       });
 
       // Save to API with AT URI
-      await authenticatedFetch(`${API_URL}/api/threads/${threadId}/comments`, user.did, {
-        method: "POST",
-        body: JSON.stringify({
-          text: newCommentPlain,
-          authorDid: user.did,
-          atUri: result.data.uri,
-          blobs: blobsForApi,
-        }),
-      });
+      await authenticatedFetch(
+        `${API_URL}/api/threads/${threadId}/comments`,
+        user.did,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            text: newCommentPlain,
+            authorDid: user.did,
+            atUri: result.data.uri,
+            blobs: blobsForApi,
+          }),
+        }
+      );
 
       // Fetch fresh data to sync
       const threadRes = await fetch(`${API_URL}/api/threads/${threadId}`);
@@ -763,10 +854,13 @@ export default function ThreadPage() {
         const handleMap = await getHandlesByDids(dids);
 
         // Batch resolve mentions
-        const allMentions = data.comments.flatMap((c: Comment) => extractMentions(c.text));
-        const mentionDidMap = allMentions.length > 0
-          ? await getDidsByHandles(allMentions)
-          : new Map<string, string>();
+        const allMentions = data.comments.flatMap((c: Comment) =>
+          extractMentions(c.text)
+        );
+        const mentionDidMap =
+          allMentions.length > 0
+            ? await getDidsByHandles(allMentions)
+            : new Map<string, string>();
 
         setComments(
           data.comments.map((c: Comment) => ({
@@ -806,9 +900,13 @@ export default function ThreadPage() {
         });
 
         // Delete from API (soft delete)
-        await authenticatedFetch(`${API_URL}/api/threads/${threadId}`, user.did, {
-          method: "DELETE",
-        });
+        await authenticatedFetch(
+          `${API_URL}/api/threads/${threadId}`,
+          user.did,
+          {
+            method: "DELETE",
+          }
+        );
 
         // Close modal and redirect to channel page
         setDeleting(false);
@@ -829,9 +927,13 @@ export default function ThreadPage() {
         });
 
         // Delete from API (soft delete)
-        await authenticatedFetch(`${API_URL}/api/comments/${comment.id}`, user.did, {
-          method: "DELETE",
-        });
+        await authenticatedFetch(
+          `${API_URL}/api/comments/${comment.id}`,
+          user.did,
+          {
+            method: "DELETE",
+          }
+        );
 
         // Remove from local state
         setComments((prev) => prev.filter((c) => c.id !== comment.id));
@@ -860,7 +962,18 @@ export default function ThreadPage() {
     }, 100);
   };
 
-  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm"];
+  const ALLOWED_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "audio/mpeg",
+    "audio/ogg",
+    "audio/wav",
+    "audio/webm",
+    "audio/mp4",
+    "audio/m4a",
+  ];
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -879,6 +992,12 @@ export default function ThreadPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    if (isTranscribed) {
+      setIsTranscribed(false);
+      setNewComment("");
+      setNewCommentPlain("");
+      editorRef.current?.setContent("");
+    }
   };
 
   const processFile = (file: File) => {
@@ -896,8 +1015,8 @@ export default function ThreadPage() {
 
     setSelectedFile(file);
 
-    // Create preview for images
-    if (file.type.startsWith("image/")) {
+    // Create preview for images and audio
+    if (file.type.startsWith("image/") || file.type.startsWith("audio/")) {
       const url = URL.createObjectURL(file);
       setFilePreview(url);
     } else {
@@ -963,7 +1082,9 @@ export default function ThreadPage() {
                 >
                   @{thread.authorHandle || thread.authorDid}
                 </a>
-                <span className="shrink-0">· {formatDate(thread.createdAt, locale)}</span>
+                <span className="shrink-0">
+                  · {formatDate(thread.createdAt, locale)}
+                </span>
                 {user?.did === thread.authorDid && (
                   <button
                     onClick={() => setDeleteTarget({ type: "thread" })}
@@ -976,7 +1097,7 @@ export default function ThreadPage() {
                 {user && user.did !== thread.authorDid && (
                   <EmojiPickerButton
                     onSelect={async (emoji) => {
-                      const cid = thread.cid || await getCid(thread.atUri);
+                      const cid = thread.cid || (await getCid(thread.atUri));
                       if (cid) {
                         handleReaction(thread.atUri, cid, emoji, "add");
                       } else {
@@ -1006,7 +1127,7 @@ export default function ThreadPage() {
                 userDid={user?.did}
                 disabled={reactionLoading === thread.atUri}
                 onReactionChange={async (emoji, action) => {
-                  const cid = thread.cid || await getCid(thread.atUri);
+                  const cid = thread.cid || (await getCid(thread.atUri));
                   if (cid) {
                     handleReaction(thread.atUri, cid, emoji, action);
                   } else {
@@ -1040,7 +1161,9 @@ export default function ThreadPage() {
                       >
                         @{c.authorHandle || c.authorDid}
                       </a>
-                      <span className="shrink-0">· {formatDate(c.createdAt, locale)}</span>
+                      <span className="shrink-0">
+                        · {formatDate(c.createdAt, locale)}
+                      </span>
                       {user?.did === c.authorDid && (
                         <button
                           onClick={() =>
@@ -1063,7 +1186,7 @@ export default function ThreadPage() {
                           </button>
                           <EmojiPickerButton
                             onSelect={async (emoji) => {
-                              const cid = c.cid || await getCid(c.atUri);
+                              const cid = c.cid || (await getCid(c.atUri));
                               if (cid) {
                                 handleReaction(c.atUri, cid, emoji, "add");
                               } else {
@@ -1092,7 +1215,7 @@ export default function ThreadPage() {
                       userDid={user?.did}
                       disabled={reactionLoading === c.atUri}
                       onReactionChange={async (emoji, action) => {
-                        const cid = c.cid || await getCid(c.atUri);
+                        const cid = c.cid || (await getCid(c.atUri));
                         if (cid) {
                           handleReaction(c.atUri, cid, emoji, action);
                         } else {
@@ -1145,6 +1268,7 @@ export default function ThreadPage() {
                     onSubmit={handlePostComment}
                     maxLength={4000}
                     placeholder={t("post.contentPlaceholder")}
+                    disabled={isTranscribed}
                   />
                 ) : (
                   <div
@@ -1163,26 +1287,39 @@ export default function ThreadPage() {
                   </div>
                 )}
                 {selectedFile && (
-                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                    {filePreview ? (
-                      <img src={filePreview} alt="" className="w-16 h-16 object-cover rounded" />
-                    ) : (
-                      <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
-                        {selectedFile.type.split("/")[1]}
+                  <div className="p-2 bg-muted/50 rounded-md space-y-2">
+                    <div className="flex items-center gap-2">
+                      {selectedFile.type.startsWith("image/") && filePreview ? (
+                        <img
+                          src={filePreview}
+                          alt=""
+                          className="w-16 h-16 object-cover rounded"
+                        />
+                      ) : !selectedFile.type.startsWith("audio/") ? (
+                        <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
+                          {selectedFile.type.split("/")[1]}
+                        </div>
+                      ) : null}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{selectedFile.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{selectedFile.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
+                      <button
+                        onClick={handleRemoveFile}
+                        className="p-1 hover:bg-muted rounded"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={handleRemoveFile}
-                      className="p-1 hover:bg-muted rounded"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    {selectedFile.type.startsWith("audio/") && filePreview && (
+                      <AudioPlayer
+                        src={filePreview}
+                        mimeType={selectedFile.type}
+                        className="w-full"
+                      />
+                    )}
                   </div>
                 )}
                 <div className="flex justify-start gap-2">
@@ -1211,6 +1348,23 @@ export default function ThreadPage() {
                   >
                     <Paperclip className="w-4 h-4" />
                   </Button>
+                  <RecordButton
+                    onRecordingStart={() => {
+                      setNewComment("");
+                      setNewCommentPlain("");
+                      editorRef.current?.setContent("");
+                      setIsTranscribed(true);
+                    }}
+                    onRecordingComplete={(file) => {
+                      processFile(file);
+                    }}
+                    onTranscript={(text) => {
+                      setNewComment(text);
+                      setNewCommentPlain(text);
+                      editorRef.current?.setContent(text);
+                    }}
+                    disabled={posting}
+                  />
                 </div>
               </CardContent>
             </Card>

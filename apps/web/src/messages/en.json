@@ -128,5 +128,10 @@
     "empty": "No post history",
     "thread": "Thread",
     "comment": "Comment"
+  },
+  "recording": {
+    "start": "Start recording",
+    "stop": "Stop recording",
+    "notSupported": "Your browser does not support recording"
   }
 }

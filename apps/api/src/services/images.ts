@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
 // R2 configuration (optional)
@@ -98,23 +98,6 @@ async function generateThumbnail(buffer: Buffer): Promise<Buffer> {
     })
     .jpeg({ quality: 80 })
     .toBuffer();
-}
-
-/**
- * Check if object exists in R2
- */
-async function existsInR2(key: string): Promise<boolean> {
-  if (!s3Client || !R2_BUCKET_NAME) return false;
-
-  try {
-    await s3Client.send(new HeadObjectCommand({
-      Bucket: R2_BUCKET_NAME,
-      Key: key,
-    }));
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**

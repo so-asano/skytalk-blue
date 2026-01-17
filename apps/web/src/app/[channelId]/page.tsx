@@ -17,6 +17,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ThreadCard, Thread } from "@/components/thread-card";
+import { RecordButton } from "@/components/record-button";
+import { AudioPlayer } from "@/components/audio-player";
+import { MentionTextareaRef } from "@/components/mention-textarea";
 import { useI18n } from "@/lib/i18n";
 import { useAuth, authenticatedFetch } from "@/lib/auth";
 import { getHandlesByDids } from "@/lib/bsky";
@@ -50,11 +53,23 @@ export default function ChannelPage() {
   const [creating, setCreating] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [isTranscribed, setIsTranscribed] = useState(false);
   const toastIdRef = useRef<string | number | null>(null);
   const newestIdRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<MentionTextareaRef>(null);
 
-  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm"];
+  const ALLOWED_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "audio/mpeg",
+    "audio/ogg",
+    "audio/wav",
+    "audio/webm",
+    "audio/mp4",
+  ];
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   const processFile = (file: File) => {
@@ -67,7 +82,7 @@ export default function ChannelPage() {
       return;
     }
     setSelectedFile(file);
-    if (file.type.startsWith("image/")) {
+    if (file.type.startsWith("image/") || file.type.startsWith("audio/")) {
       setFilePreview(URL.createObjectURL(file));
     } else {
       setFilePreview(null);
@@ -82,6 +97,12 @@ export default function ChannelPage() {
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+    if (isTranscribed) {
+      setIsTranscribed(false);
+      setNewThreadContent("");
+      setNewThreadContentPlain("");
+      editorRef.current?.setContent("");
     }
   };
 
@@ -110,7 +131,9 @@ export default function ChannelPage() {
     if (!newestIdRef.current) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/threads?afterId=${newestIdRef.current}&channelId=${channelId}`);
+      const res = await fetch(
+        `${API_URL}/api/threads?afterId=${newestIdRef.current}&channelId=${channelId}`
+      );
       if (res.ok) {
         const data = await res.json();
         const newThreads = data.threads as Thread[];
@@ -209,14 +232,25 @@ export default function ChannelPage() {
   }, []);
 
   const handleCreateThread = async () => {
-    if (!user || !agent || !newThreadTitle.trim() || !newThreadContentPlain.trim() || creating) return;
+    if (
+      !user ||
+      !agent ||
+      !newThreadTitle.trim() ||
+      !newThreadContentPlain.trim() ||
+      creating
+    )
+      return;
 
     setCreating(true);
     try {
       // Upload blob if selected
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let blobs: any[] = [];
-      let blobsForApi: Array<{ ref: { $link: string }; mimeType: string; size: number }> = [];
+      let blobsForApi: Array<{
+        ref: { $link: string };
+        mimeType: string;
+        size: number;
+      }> = [];
       if (selectedFile) {
         const arrayBuffer = await selectedFile.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
@@ -226,11 +260,13 @@ export default function ChannelPage() {
         // Use the raw BlobRef for PDS record
         blobs = [uploadResult.data.blob];
         // Store serialized version for our API
-        blobsForApi = [{
-          ref: { $link: uploadResult.data.blob.ref.toString() },
-          mimeType: selectedFile.type,
-          size: selectedFile.size,
-        }];
+        blobsForApi = [
+          {
+            ref: { $link: uploadResult.data.blob.ref.toString() },
+            mimeType: selectedFile.type,
+            size: selectedFile.size,
+          },
+        ];
       }
 
       // Create record on PDS
@@ -271,7 +307,9 @@ export default function ChannelPage() {
       });
 
       // Fetch fresh data to sync
-      const threadsRes = await fetch(`${API_URL}/api/threads?channelId=${channelId}`);
+      const threadsRes = await fetch(
+        `${API_URL}/api/threads?channelId=${channelId}`
+      );
       if (threadsRes.ok) {
         const data = await threadsRes.json();
         const threadsData = data.threads as Thread[];
@@ -298,7 +336,9 @@ export default function ChannelPage() {
   };
 
   const channelName = channel
-    ? locale === "ja" ? channel.nameJa : channel.nameEn
+    ? locale === "ja"
+      ? channel.nameJa
+      : channel.nameEn
     : channelId;
 
   if (isNotFound) {
@@ -323,7 +363,10 @@ export default function ChannelPage() {
           onValueChange={setAccordionValue}
           className="mb-6"
         >
-          <AccordionItem value="new-thread" className="bg-card rounded-xl border shadow-sm px-5">
+          <AccordionItem
+            value="new-thread"
+            className="bg-card rounded-xl border shadow-sm px-5"
+          >
             <AccordionTrigger className="hover:no-underline cursor-pointer">
               {t("thread.new")}
             </AccordionTrigger>
@@ -335,13 +378,21 @@ export default function ChannelPage() {
               />
               <div className="flex border-b">
                 <button
-                  className={`px-4 py-2 text-sm font-medium ${contentTab === "write" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
+                  className={`px-4 py-2 text-sm font-medium ${
+                    contentTab === "write"
+                      ? "border-b-2 border-primary text-primary"
+                      : "text-muted-foreground"
+                  }`}
                   onClick={() => setContentTab("write")}
                 >
                   {t("post.write")}
                 </button>
                 <button
-                  className={`px-4 py-2 text-sm font-medium ${contentTab === "preview" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
+                  className={`px-4 py-2 text-sm font-medium ${
+                    contentTab === "preview"
+                      ? "border-b-2 border-primary text-primary"
+                      : "text-muted-foreground"
+                  }`}
                   onClick={() => setContentTab("preview")}
                 >
                   {t("post.preview")}
@@ -349,6 +400,7 @@ export default function ChannelPage() {
               </div>
               {contentTab === "write" ? (
                 <MentionTextarea
+                  ref={editorRef}
                   value={newThreadContent}
                   onChange={setNewThreadContent}
                   onChangePlainText={setNewThreadContentPlain}
@@ -356,6 +408,7 @@ export default function ChannelPage() {
                   onSubmit={handleCreateThread}
                   maxLength={4000}
                   placeholder={t("post.contentPlaceholder")}
+                  disabled={isTranscribed}
                 />
               ) : (
                 <div
@@ -367,41 +420,67 @@ export default function ChannelPage() {
                       <Markdown>{newThreadContentPlain}</Markdown>
                     </div>
                   ) : (
-                    <p className="text-muted-foreground">{t("post.nothingToPreview")}</p>
+                    <p className="text-muted-foreground">
+                      {t("post.nothingToPreview")}
+                    </p>
                   )}
                 </div>
               )}
               {selectedFile && (
-                <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                  {filePreview ? (
-                    <img src={filePreview} alt="" className="w-16 h-16 object-cover rounded" />
-                  ) : (
-                    <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
-                      {selectedFile.type.split("/")[1]}
+                <div className="p-2 bg-muted/50 rounded-md space-y-2">
+                  <div className="flex items-center gap-2">
+                    {selectedFile.type.startsWith("image/") && filePreview ? (
+                      <img
+                        src={filePreview}
+                        alt=""
+                        className="w-16 h-16 object-cover rounded"
+                      />
+                    ) : !selectedFile.type.startsWith("audio/") ? (
+                      <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
+                        {selectedFile.type.split("/")[1]}
+                      </div>
+                    ) : null}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{selectedFile.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{selectedFile.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
+                    <button
+                      onClick={handleRemoveFile}
+                      className="p-1 hover:bg-muted rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={handleRemoveFile}
-                    className="p-1 hover:bg-muted rounded"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  {selectedFile.type.startsWith("audio/") && filePreview && (
+                    <AudioPlayer
+                      src={filePreview}
+                      mimeType={selectedFile.type}
+                      className="w-full"
+                    />
+                  )}
                 </div>
               )}
               <div className="flex gap-2">
-                <Button onClick={handleCreateThread} disabled={creating || !newThreadTitle.trim() || !newThreadContentPlain.trim()}>
-                  {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.create")}
+                <Button
+                  onClick={handleCreateThread}
+                  disabled={
+                    creating ||
+                    !newThreadTitle.trim() ||
+                    !newThreadContentPlain.trim()
+                  }
+                >
+                  {creating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    t("common.create")
+                  )}
                 </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/ogg,audio/wav,audio/webm"
+                  accept="image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/ogg,audio/wav,audio/webm,audio/m4a"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) processFile(file);
@@ -416,6 +495,23 @@ export default function ChannelPage() {
                 >
                   <Paperclip className="w-4 h-4" />
                 </Button>
+                <RecordButton
+                  onRecordingStart={() => {
+                    setNewThreadContent("");
+                    setNewThreadContentPlain("");
+                    editorRef.current?.setContent("");
+                    setIsTranscribed(true);
+                  }}
+                  onRecordingComplete={(file) => {
+                    processFile(file);
+                  }}
+                  onTranscript={(text) => {
+                    setNewThreadContent(text);
+                    setNewThreadContentPlain(text);
+                    editorRef.current?.setContent(text);
+                  }}
+                  disabled={creating}
+                />
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -428,7 +524,9 @@ export default function ChannelPage() {
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : threads.length === 0 ? (
-          <p className="text-muted-foreground text-center py-8">{t("thread.noThreads")}</p>
+          <p className="text-muted-foreground text-center py-8">
+            {t("thread.noThreads")}
+          </p>
         ) : (
           threads.map((thread) => (
             <ThreadCard

@@ -18,6 +18,7 @@ interface MentionTextareaProps {
   placeholder?: string;
   className?: string;
   maxLength?: number;
+  disabled?: boolean;
 }
 
 export interface MentionTextareaRef {
@@ -124,6 +125,7 @@ export const MentionTextarea = forwardRef<MentionTextareaRef, MentionTextareaPro
     placeholder,
     className,
     maxLength,
+    disabled,
   }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const { t } = useI18n();
@@ -131,6 +133,7 @@ export const MentionTextarea = forwardRef<MentionTextareaRef, MentionTextareaPro
 
     const editor = useEditor({
       immediatelyRender: false,
+      editable: !disabled,
       extensions: [
         StarterKit.configure({
           heading: false,
@@ -255,6 +258,12 @@ export const MentionTextarea = forwardRef<MentionTextareaRef, MentionTextareaPro
     }, [editor, value]);
 
     useEffect(() => {
+      if (editor) {
+        editor.setEditable(!disabled);
+      }
+    }, [editor, disabled]);
+
+    useEffect(() => {
       if (!containerRef.current || !onHeightChange) return;
 
       const observer = new ResizeObserver((entries) => {
@@ -268,7 +277,10 @@ export const MentionTextarea = forwardRef<MentionTextareaRef, MentionTextareaPro
     }, [onHeightChange]);
 
     return (
-      <div ref={containerRef}>
+      <div
+        ref={containerRef}
+        className={disabled ? "opacity-60 pointer-events-none" : ""}
+      >
         <EditorContent editor={editor} />
       </div>
     );
