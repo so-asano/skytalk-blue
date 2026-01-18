@@ -19,10 +19,12 @@ import {
 import { ThreadCard, Thread } from "@/components/thread-card";
 import { RecordButton } from "@/components/record-button";
 import { AudioPlayer } from "@/components/audio-player";
+import { UrlPreviews } from "@/components/url-embeds";
 import { MentionTextareaRef } from "@/components/mention-textarea";
 import { useI18n } from "@/lib/i18n";
 import { useAuth, authenticatedFetch } from "@/lib/auth";
 import { getHandlesByDids } from "@/lib/bsky";
+import { useUrlPreview } from "@/hooks/useUrlPreview";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -58,8 +60,18 @@ export default function ChannelPage() {
   const newestIdRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<MentionTextareaRef>(null);
-  const ogpFetchedUrlRef = useRef<string | null>(null);
-  const ogpDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const {
+    previews: urlPreviews,
+    handleTextChange: handleUrlTextChange,
+    reset: resetUrlPreview,
+  } = useUrlPreview({
+    onFirstOgpTitle: (title) => {
+      if (!newThreadTitle.trim()) {
+        setNewThreadTitle(title);
+      }
+    },
+  });
 
   const ALLOWED_TYPES = [
     "image/jpeg",
@@ -233,49 +245,6 @@ export default function ChannelPage() {
     };
   }, []);
 
-  // Auto-fill title from OGP when URL is detected in content
-  useEffect(() => {
-    // Only fetch OGP if title is empty
-    if (newThreadTitle.trim()) return;
-
-    // Extract first URL from content
-    // eslint-disable-next-line no-useless-escape
-    const urlRegex = /https?:\/\/[^\s<>\[\]()'"]+/g;
-    const matches = newThreadContentPlain.match(urlRegex);
-    const firstUrl = matches?.[0];
-
-    if (!firstUrl) return;
-
-    // Don't fetch if we already fetched this URL
-    if (ogpFetchedUrlRef.current === firstUrl) return;
-
-    // Debounce the fetch
-    if (ogpDebounceRef.current) {
-      clearTimeout(ogpDebounceRef.current);
-    }
-
-    ogpDebounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/ogp?url=${encodeURIComponent(firstUrl)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.title && !newThreadTitle.trim()) {
-            setNewThreadTitle(data.title);
-            ogpFetchedUrlRef.current = firstUrl;
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching OGP:", error);
-      }
-    }, 500);
-
-    return () => {
-      if (ogpDebounceRef.current) {
-        clearTimeout(ogpDebounceRef.current);
-      }
-    };
-  }, [newThreadContentPlain, newThreadTitle]);
-
   const handleCreateThread = async () => {
     if (
       !user ||
@@ -372,7 +341,7 @@ export default function ChannelPage() {
       setNewThreadContent("");
       setNewThreadContentPlain("");
       setAccordionValue("");
-      ogpFetchedUrlRef.current = null;
+      resetUrlPreview();
       handleRemoveFile();
     } catch (error) {
       console.error("Error creating thread:", error);
@@ -449,7 +418,10 @@ export default function ChannelPage() {
                   ref={editorRef}
                   value={newThreadContent}
                   onChange={setNewThreadContent}
-                  onChangePlainText={setNewThreadContentPlain}
+                  onChangePlainText={(text, isPaste) => {
+                    setNewThreadContentPlain(text);
+                    handleUrlTextChange(text, isPaste);
+                  }}
                   onHeightChange={setEditorHeight}
                   onSubmit={handleCreateThread}
                   maxLength={4000}
@@ -472,6 +444,7 @@ export default function ChannelPage() {
                   )}
                 </div>
               )}
+              <UrlPreviews previews={urlPreviews} />
               {selectedFile && (
                 <div className="p-2 bg-muted/50 rounded-md space-y-2">
                   <div className="flex items-center gap-2">

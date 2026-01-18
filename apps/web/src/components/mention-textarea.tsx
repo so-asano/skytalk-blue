@@ -12,7 +12,7 @@ import { useI18n } from "@/lib/i18n";
 interface MentionTextareaProps {
   value: string;
   onChange: (value: string) => void;
-  onChangePlainText?: (plainText: string) => void;
+  onChangePlainText?: (plainText: string, isPaste?: boolean) => void;
   onHeightChange?: (height: number) => void;
   onSubmit?: () => void;
   placeholder?: string;
@@ -235,6 +235,14 @@ export const MentionTextarea = forwardRef<MentionTextareaRef, MentionTextareaPro
             return true;
           }
           return false;
+        },
+        handlePaste: () => {
+          // Mark next update as paste
+          setTimeout(() => {
+            const text = editor?.getText() || "";
+            onChangePlainText?.(text, true);
+          }, 0);
+          return false; // Let default paste handling continue
         },
       },
     });
