@@ -217,13 +217,14 @@ export class JetstreamService {
       }
 
       // Update threads table
+      const eventTime = new Date(event.time_us / 1000);
       if (action === "CREATE" && record) {
         console.log(`Thread CREATE event for ${atUri} - channel: ${record.channelId}`);
       } else if (action === "DELETE") {
         // Mark thread as deleted
         await db
           .update(threads)
-          .set({ deletedAt: new Date(), updatedAt: new Date() })
+          .set({ deletedAt: eventTime, updatedAt: eventTime })
           .where(eq(threads.atUri, atUri));
         console.log(`Thread DELETE event for ${atUri}`);
       }
@@ -284,6 +285,7 @@ export class JetstreamService {
       }
 
       // Handle comment sync
+      const eventTime = new Date(event.time_us / 1000);
       if (action === "CREATE" && record) {
         // Find thread by atUri and update comment count
         const thread = await db
@@ -301,7 +303,7 @@ export class JetstreamService {
 
           await db
             .update(threads)
-            .set({ commentCount: result[0].count, updatedAt: new Date() })
+            .set({ commentCount: result[0].count, updatedAt: eventTime })
             .where(eq(threads.id, threadId));
         }
         console.log(`Comment CREATE event for ${atUri} - threadUri: ${record.threadUri}`);
@@ -319,7 +321,7 @@ export class JetstreamService {
           // Mark comment as deleted
           await db
             .update(comments)
-            .set({ deletedAt: new Date(), updatedAt: new Date() })
+            .set({ deletedAt: eventTime, updatedAt: eventTime })
             .where(eq(comments.atUri, atUri));
 
           // Update thread commentCount by counting actual comments
@@ -330,7 +332,7 @@ export class JetstreamService {
 
           await db
             .update(threads)
-            .set({ commentCount: result[0].count, updatedAt: new Date() })
+            .set({ commentCount: result[0].count, updatedAt: eventTime })
             .where(eq(threads.id, threadId));
         }
         console.log(`Comment DELETE event for ${atUri}`);
@@ -370,6 +372,7 @@ export class JetstreamService {
         record = validation.data;
       }
 
+      const eventTime = new Date(event.time_us / 1000);
       if (action === "CREATE" && record) {
         // Check if reaction already exists
         const existing = await db
@@ -402,7 +405,7 @@ export class JetstreamService {
               if (!dids.includes(authorDid)) {
                 currentReactions[emoji] = [...dids, authorDid];
                 await db.update(threads)
-                  .set({ reactions: currentReactions, updatedAt: new Date() })
+                  .set({ reactions: currentReactions, updatedAt: eventTime })
                   .where(eq(threads.atUri, subjectUri));
               }
             }
@@ -414,7 +417,7 @@ export class JetstreamService {
               if (!dids.includes(authorDid)) {
                 currentReactions[emoji] = [...dids, authorDid];
                 await db.update(comments)
-                  .set({ reactions: currentReactions, updatedAt: new Date() })
+                  .set({ reactions: currentReactions, updatedAt: eventTime })
                   .where(eq(comments.atUri, subjectUri));
               }
             }
@@ -433,7 +436,7 @@ export class JetstreamService {
         // Mark reaction as deleted
         await db
           .update(reactions)
-          .set({ deletedAt: new Date(), updatedAt: new Date() })
+          .set({ deletedAt: eventTime, updatedAt: eventTime })
           .where(eq(reactions.atUri, atUri));
 
         // Update the JSON field on thread/comment
@@ -452,7 +455,7 @@ export class JetstreamService {
                 delete currentReactions[emoji];
               }
               await db.update(threads)
-                .set({ reactions: currentReactions, updatedAt: new Date() })
+                .set({ reactions: currentReactions, updatedAt: eventTime })
                 .where(eq(threads.atUri, subjectUri));
             }
           } else if (subjectUri.includes("/blue.skytalk.talk.comment/")) {
@@ -467,7 +470,7 @@ export class JetstreamService {
                 delete currentReactions[emoji];
               }
               await db.update(comments)
-                .set({ reactions: currentReactions, updatedAt: new Date() })
+                .set({ reactions: currentReactions, updatedAt: eventTime })
                 .where(eq(comments.atUri, subjectUri));
             }
           }
