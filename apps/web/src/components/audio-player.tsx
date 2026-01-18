@@ -29,23 +29,60 @@ export function AudioPlayer({ src, mimeType, className }: AudioPlayerProps) {
     const audio = audioRef.current;
     if (!audio) return;
 
+    // Reset state
+    setCurrentTime(0);
+    setDuration(0);
+    setPlaying(false);
+
+    let durationFound = false;
+
     // Load the audio source
     audio.load();
 
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const handleDurationChange = () => setDuration(audio.duration);
+    const handleLoadedMetadata = () => {
+      // For webm files, duration may be Infinity initially
+      if (isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+        durationFound = true;
+      } else {
+        // Workaround: seek to end to get duration
+        audio.currentTime = 1e10;
+      }
+    };
+
+    const handleTimeUpdate = () => {
+      // After seeking to end, we can get the real duration
+      if (!durationFound && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+        durationFound = true;
+        audio.currentTime = 0;
+      }
+    };
+
     const handleEnded = () => setPlaying(false);
 
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("durationchange", handleDurationChange);
     audio.addEventListener("ended", handleEnded);
 
     return () => {
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("durationchange", handleDurationChange);
       audio.removeEventListener("ended", handleEnded);
     };
   }, [src]);
+
+  // Smooth progress update
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !playing) return;
+
+    const interval = setInterval(() => {
+      setCurrentTime(audio.currentTime);
+    }, 50); // Update every 50ms for smooth progress
+
+    return () => clearInterval(interval);
+  }, [playing]);
 
   const togglePlay = () => {
     const audio = audioRef.current;
