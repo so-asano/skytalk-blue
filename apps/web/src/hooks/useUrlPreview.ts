@@ -136,24 +136,26 @@ export function useUrlPreview(
 
   const handleTextChange = useCallback(
     (newText: string, isPaste?: boolean) => {
-      const previousText = previousTextRef.current;
       previousTextRef.current = newText;
 
       const currentUrls = extractUrls(newText);
-      const previousUrls = extractUrls(previousText);
+      if (currentUrls.length === 0) return;
 
-      // Find new URLs
-      const newUrls = currentUrls.filter((url) => !previousUrls.includes(url));
-      if (newUrls.length === 0) return;
-
-      // On paste, process all new URLs immediately
+      // On paste, process all unfetched URLs immediately
       if (isPaste) {
-        newUrls.forEach((url) => processUrl(url));
+        currentUrls.forEach((url) => {
+          if (!fetchedUrlsRef.current.has(url)) {
+            processUrl(url);
+          }
+        });
         return;
       }
 
-      // Otherwise, check if URL is "completed" (has space/newline after it)
-      for (const url of newUrls) {
+      // Otherwise, check ALL unfetched URLs if they are "completed" (have space/newline after)
+      for (const url of currentUrls) {
+        // Skip already fetched URLs
+        if (fetchedUrlsRef.current.has(url)) continue;
+
         const urlIndex = newText.lastIndexOf(url);
         if (urlIndex === -1) continue;
 
