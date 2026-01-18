@@ -7,7 +7,7 @@ import { seedChannels } from "./db/seed.js";
 import { eq, desc, isNull, and, gt, count, inArray } from "drizzle-orm";
 import { jetstreamService } from "./services/jetstream.js";
 import { createSiteAuthMiddleware, requireUserAuth, AuthenticatedRequest } from "./auth.js";
-import { extractUrls, getOgpBatch } from "./services/ogp.js";
+import { extractUrls, getOgpBatch, getOgp } from "./services/ogp.js";
 import { getImage, ImageSize } from "./services/images.js";
 
 const app = express();
@@ -170,6 +170,24 @@ app.get("/api/health", (_req, res) => {
     timestamp: new Date().toISOString(),
     jetstream: jetstreamStatus,
   });
+});
+
+// Get OGP data for a single URL
+app.get("/api/ogp", async (req, res) => {
+  const { url } = req.query;
+
+  if (!url || typeof url !== "string") {
+    res.status(400).json({ error: "url is required" });
+    return;
+  }
+
+  try {
+    const ogpData = await getOgp(url);
+    res.json(ogpData);
+  } catch (error) {
+    console.error("Error fetching OGP:", error);
+    res.status(500).json({ error: "Failed to fetch OGP" });
+  }
 });
 
 // Image proxy with optional R2 caching
