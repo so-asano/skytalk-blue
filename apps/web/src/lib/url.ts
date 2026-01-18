@@ -75,3 +75,94 @@ export function isBlueskyProfileUrl(url: string): boolean {
     return false;
   }
 }
+
+// Extract Twitter/X post info from URL
+export function getTwitterPostInfo(
+  url: string
+): { username: string; tweetId: string } | null {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.replace("www.", "");
+
+    // twitter.com/{username}/status/{tweetId} or x.com/{username}/status/{tweetId}
+    if (hostname === "twitter.com" || hostname === "x.com") {
+      const match = urlObj.pathname.match(/^\/([^/]+)\/status\/(\d+)/);
+      if (match) {
+        return { username: match[1], tweetId: match[2] };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Extract Spotify embed info from URL
+export function getSpotifyInfo(
+  url: string
+): { type: "track" | "album" | "playlist" | "episode" | "show"; id: string } | null {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.replace("www.", "");
+
+    // open.spotify.com/{type}/{id}
+    if (hostname === "open.spotify.com") {
+      const match = urlObj.pathname.match(
+        /^\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/
+      );
+      if (match) {
+        return {
+          type: match[1] as "track" | "album" | "playlist" | "episode" | "show",
+          id: match[2],
+        };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Extract Apple Music embed info from URL
+export function getAppleMusicInfo(
+  url: string
+): { type: "album" | "playlist" | "song"; region: string; id: string; trackId?: string } | null {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.replace("www.", "");
+
+    // music.apple.com/{region}/album/{name}/{id}?i={trackId}
+    // music.apple.com/{region}/playlist/{name}/{id}
+    if (hostname === "music.apple.com") {
+      // Album or song (song is album with ?i= param)
+      const albumMatch = urlObj.pathname.match(/^\/([a-z]{2})\/album\/[^/]+\/(\d+)/);
+      if (albumMatch) {
+        const trackId = urlObj.searchParams.get("i");
+        return {
+          type: trackId ? "song" : "album",
+          region: albumMatch[1],
+          id: albumMatch[2],
+          trackId: trackId || undefined,
+        };
+      }
+
+      // Playlist
+      const playlistMatch = urlObj.pathname.match(
+        /^\/([a-z]{2})\/playlist\/[^/]+\/(pl\.[a-zA-Z0-9]+)/
+      );
+      if (playlistMatch) {
+        return {
+          type: "playlist",
+          region: playlistMatch[1],
+          id: playlistMatch[2],
+        };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}

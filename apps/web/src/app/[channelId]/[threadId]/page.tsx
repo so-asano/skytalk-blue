@@ -35,8 +35,18 @@ import { EmojiPickerButton } from "@/components/emoji-picker-button";
 import { ZoomableImage } from "@/components/zoomable-image";
 import { AudioPlayer } from "@/components/audio-player";
 import { RecordButton } from "@/components/record-button";
-import { UrlPreviews } from "@/components/url-embeds";
+import {
+  UrlPreviews,
+  TwitterEmbed,
+  SpotifyEmbed,
+  AppleMusicEmbed,
+} from "@/components/url-embeds";
 import { useUrlPreview } from "@/hooks/useUrlPreview";
+import {
+  getTwitterPostInfo,
+  getSpotifyInfo,
+  getAppleMusicInfo,
+} from "@/lib/url";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -322,6 +332,38 @@ function OgpCards({
         // Skip Bluesky profile URLs (mentions)
         if (url.includes("bsky.app/profile/") && !url.includes("/post/")) {
           return null;
+        }
+
+        // Check if it's a Twitter/X URL
+        const twitterInfo = getTwitterPostInfo(url);
+        if (twitterInfo) {
+          return <TwitterEmbed key={url} tweetId={twitterInfo.tweetId} />;
+        }
+
+        // Check if it's a Spotify URL
+        const spotifyInfo = getSpotifyInfo(url);
+        if (spotifyInfo) {
+          return (
+            <SpotifyEmbed
+              key={url}
+              type={spotifyInfo.type}
+              id={spotifyInfo.id}
+            />
+          );
+        }
+
+        // Check if it's an Apple Music URL
+        const appleMusicInfo = getAppleMusicInfo(url);
+        if (appleMusicInfo) {
+          return (
+            <AppleMusicEmbed
+              key={url}
+              type={appleMusicInfo.type}
+              region={appleMusicInfo.region}
+              id={appleMusicInfo.id}
+              trackId={appleMusicInfo.trackId}
+            />
+          );
         }
 
         // Otherwise show OGP card

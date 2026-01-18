@@ -70,6 +70,111 @@ export function YouTubeEmbed({ videoId }: { videoId: string }) {
   );
 }
 
+// Twitter/X Embed component
+export function TwitterEmbed({ tweetId }: { tweetId: string }) {
+  const [height, setHeight] = useState(250);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (
+        event.origin !== "https://platform.twitter.com" &&
+        event.origin !== "https://platform.x.com"
+      )
+        return;
+      // Twitter embed sends height via postMessage
+      if (event.data?.["twttr.embed"]?.id?.includes(tweetId)) {
+        const newHeight = event.data?.["twttr.embed"]?.height;
+        if (typeof newHeight === "number") {
+          setHeight(newHeight + 2);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [tweetId]);
+
+  return (
+    <div className="mt-3 max-w-md">
+      <iframe
+        src={`https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&theme=light`}
+        width="100%"
+        height={height}
+        frameBorder={0}
+        scrolling="no"
+        className="border-none block rounded-lg"
+        title="Twitter post"
+        sandbox="allow-scripts allow-same-origin allow-popups"
+      />
+    </div>
+  );
+}
+
+// Spotify Embed component
+export function SpotifyEmbed({
+  type,
+  id,
+}: {
+  type: "track" | "album" | "playlist" | "episode" | "show";
+  id: string;
+}) {
+  // Track/episode: compact height, album/playlist/show: larger
+  const height = type === "track" || type === "episode" ? 152 : 352;
+
+  return (
+    <div className="mt-3 max-w-md">
+      <iframe
+        src={`https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`}
+        width="100%"
+        height={height}
+        frameBorder={0}
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy"
+        className="rounded-xl"
+        title="Spotify embed"
+      />
+    </div>
+  );
+}
+
+// Apple Music Embed component
+export function AppleMusicEmbed({
+  type,
+  region,
+  id,
+  trackId,
+}: {
+  type: "album" | "playlist" | "song";
+  region: string;
+  id: string;
+  trackId?: string;
+}) {
+  // Song: compact, album/playlist: larger
+  const height = type === "song" ? 175 : 450;
+
+  // Build embed URL
+  let embedUrl = `https://embed.music.apple.com/${region}/${type === "song" ? "album" : type}/${id}`;
+  if (trackId) {
+    embedUrl += `?i=${trackId}`;
+  }
+
+  return (
+    <div className="mt-3 max-w-md">
+      <iframe
+        src={embedUrl}
+        width="100%"
+        height={height}
+        frameBorder={0}
+        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation-by-user-activation"
+        loading="lazy"
+        className="rounded-xl overflow-hidden"
+        title="Apple Music embed"
+      />
+    </div>
+  );
+}
+
 // Bluesky Embed component
 export function BlueskyEmbed({
   handle,
@@ -156,6 +261,29 @@ export function UrlPreviews({ previews }: { previews: UrlPreviewItem[] }) {
               key={preview.url}
               handle={preview.handle}
               rkey={preview.rkey}
+            />
+          );
+        }
+        if (preview.type === "twitter") {
+          return <TwitterEmbed key={preview.url} tweetId={preview.tweetId} />;
+        }
+        if (preview.type === "spotify") {
+          return (
+            <SpotifyEmbed
+              key={preview.url}
+              type={preview.spotifyType}
+              id={preview.spotifyId}
+            />
+          );
+        }
+        if (preview.type === "appleMusic") {
+          return (
+            <AppleMusicEmbed
+              key={preview.url}
+              type={preview.appleMusicType}
+              region={preview.region}
+              id={preview.appleMusicId}
+              trackId={preview.trackId}
             />
           );
         }

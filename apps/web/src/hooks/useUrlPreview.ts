@@ -6,6 +6,9 @@ import {
   getYouTubeVideoId,
   getBlueskyPostInfo,
   isBlueskyProfileUrl,
+  getTwitterPostInfo,
+  getSpotifyInfo,
+  getAppleMusicInfo,
 } from "@/lib/url";
 import type { OgpData } from "@/components/url-embeds";
 
@@ -14,6 +17,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 export type UrlPreviewItem =
   | { type: "youtube"; url: string; videoId: string }
   | { type: "bluesky"; url: string; handle: string; rkey: string }
+  | { type: "twitter"; url: string; tweetId: string }
+  | { type: "spotify"; url: string; spotifyType: "track" | "album" | "playlist" | "episode" | "show"; spotifyId: string }
+  | { type: "appleMusic"; url: string; appleMusicType: "album" | "playlist" | "song"; region: string; appleMusicId: string; trackId?: string }
   | { type: "ogp"; url: string; data: OgpData };
 
 interface UseUrlPreviewOptions {
@@ -64,6 +70,43 @@ export function useUrlPreview(
 
       // Skip Bluesky profile URLs
       if (isBlueskyProfileUrl(url)) return;
+
+      // Check for Twitter/X
+      const twitterInfo = getTwitterPostInfo(url);
+      if (twitterInfo) {
+        setPreviews((prev) => [
+          ...prev,
+          { type: "twitter", url, tweetId: twitterInfo.tweetId },
+        ]);
+        return;
+      }
+
+      // Check for Spotify
+      const spotifyInfo = getSpotifyInfo(url);
+      if (spotifyInfo) {
+        setPreviews((prev) => [
+          ...prev,
+          { type: "spotify", url, spotifyType: spotifyInfo.type, spotifyId: spotifyInfo.id },
+        ]);
+        return;
+      }
+
+      // Check for Apple Music
+      const appleMusicInfo = getAppleMusicInfo(url);
+      if (appleMusicInfo) {
+        setPreviews((prev) => [
+          ...prev,
+          {
+            type: "appleMusic",
+            url,
+            appleMusicType: appleMusicInfo.type,
+            region: appleMusicInfo.region,
+            appleMusicId: appleMusicInfo.id,
+            trackId: appleMusicInfo.trackId,
+          },
+        ]);
+        return;
+      }
 
       // Fetch OGP for other URLs
       try {
