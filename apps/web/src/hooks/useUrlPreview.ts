@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   extractUrls,
   getYouTubeVideoId,
@@ -139,6 +139,20 @@ export function useUrlPreview(
       previousTextRef.current = newText;
 
       const currentUrls = extractUrls(newText);
+      const currentUrlSet = new Set(currentUrls);
+
+      // Remove previews for URLs that are no longer in text
+      setPreviews((prev) => {
+        return prev.filter((p) => {
+          if (!currentUrlSet.has(p.url)) {
+            // Also remove from fetchedUrls
+            fetchedUrlsRef.current.delete(p.url);
+            return false;
+          }
+          return true;
+        });
+      });
+
       if (currentUrls.length === 0) return;
 
       // On paste, process all unfetched URLs immediately
@@ -174,12 +188,6 @@ export function useUrlPreview(
     previousTextRef.current = "";
     fetchedUrlsRef.current.clear();
     hasCalledTitleCallbackRef.current = false;
-  }, []);
-
-  // Remove previews for URLs that are no longer in text
-  useEffect(() => {
-    const currentUrls = new Set(extractUrls(previousTextRef.current));
-    setPreviews((prev) => prev.filter((p) => currentUrls.has(p.url)));
   }, []);
 
   return {
