@@ -58,6 +58,8 @@ export default function ChannelPage() {
   const newestIdRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<MentionTextareaRef>(null);
+  const ogpFetchedUrlRef = useRef<string | null>(null);
+  const ogpDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const ALLOWED_TYPES = [
     "image/jpeg",
@@ -231,6 +233,49 @@ export default function ChannelPage() {
     };
   }, []);
 
+  // Auto-fill title from OGP when URL is detected in content
+  useEffect(() => {
+    // Only fetch OGP if title is empty
+    if (newThreadTitle.trim()) return;
+
+    // Extract first URL from content
+    // eslint-disable-next-line no-useless-escape
+    const urlRegex = /https?:\/\/[^\s<>\[\]()'"]+/g;
+    const matches = newThreadContentPlain.match(urlRegex);
+    const firstUrl = matches?.[0];
+
+    if (!firstUrl) return;
+
+    // Don't fetch if we already fetched this URL
+    if (ogpFetchedUrlRef.current === firstUrl) return;
+
+    // Debounce the fetch
+    if (ogpDebounceRef.current) {
+      clearTimeout(ogpDebounceRef.current);
+    }
+
+    ogpDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/ogp?url=${encodeURIComponent(firstUrl)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.title && !newThreadTitle.trim()) {
+            setNewThreadTitle(data.title);
+            ogpFetchedUrlRef.current = firstUrl;
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching OGP:", error);
+      }
+    }, 500);
+
+    return () => {
+      if (ogpDebounceRef.current) {
+        clearTimeout(ogpDebounceRef.current);
+      }
+    };
+  }, [newThreadContentPlain, newThreadTitle]);
+
   const handleCreateThread = async () => {
     if (
       !user ||
@@ -327,6 +372,7 @@ export default function ChannelPage() {
       setNewThreadContent("");
       setNewThreadContentPlain("");
       setAccordionValue("");
+      ogpFetchedUrlRef.current = null;
       handleRemoveFile();
     } catch (error) {
       console.error("Error creating thread:", error);
