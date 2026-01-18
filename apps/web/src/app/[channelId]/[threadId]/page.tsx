@@ -35,6 +35,8 @@ import { EmojiPickerButton } from "@/components/emoji-picker-button";
 import { ZoomableImage } from "@/components/zoomable-image";
 import { AudioPlayer } from "@/components/audio-player";
 import { RecordButton } from "@/components/record-button";
+import { UrlPreviews } from "@/components/url-embeds";
+import { useUrlPreview } from "@/hooks/useUrlPreview";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -451,6 +453,12 @@ export default function ThreadPage() {
   const toastIdRef = useRef<string | number | null>(null);
   const editorRef = useRef<MentionTextareaRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    previews: urlPreviews,
+    handleTextChange: handleUrlTextChange,
+    reset: resetUrlPreview,
+  } = useUrlPreview();
 
   // Get CID from PDS for a record
   const getCid = async (atUri: string): Promise<string | null> => {
@@ -874,6 +882,7 @@ export default function ThreadPage() {
       setNewComment("");
       setNewCommentPlain("");
       editorRef.current?.setContent("");
+      resetUrlPreview();
       handleRemoveFile();
     } catch (error) {
       console.error("Error posting comment:", error);
@@ -1263,7 +1272,10 @@ export default function ThreadPage() {
                     ref={editorRef}
                     value={newComment}
                     onChange={setNewComment}
-                    onChangePlainText={setNewCommentPlain}
+                    onChangePlainText={(text, isPaste) => {
+                      setNewCommentPlain(text);
+                      handleUrlTextChange(text, isPaste);
+                    }}
                     onHeightChange={setCommentEditorHeight}
                     onSubmit={handlePostComment}
                     maxLength={4000}
@@ -1286,6 +1298,7 @@ export default function ThreadPage() {
                     )}
                   </div>
                 )}
+                <UrlPreviews previews={urlPreviews} />
                 {selectedFile && (
                   <div className="p-2 bg-muted/50 rounded-md space-y-2">
                     <div className="flex items-center gap-2">
