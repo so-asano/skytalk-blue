@@ -92,6 +92,7 @@ async function fetchBlobFromPds(did: string, cid: string): Promise<Buffer | null
  */
 async function generateThumbnail(buffer: Buffer): Promise<Buffer> {
   return sharp(buffer)
+    .rotate() // Auto-rotate based on EXIF orientation
     .resize(THUMB_SIZE, THUMB_SIZE, {
       fit: "inside",
       withoutEnlargement: true,
