@@ -1,6 +1,6 @@
 // OAuth
 export const OAUTH_SCOPE =
-  "atproto include:blue.skytalk.talk.permissionSet";
+  "atproto include:blue.skytalk.talk.permissionSet blob?accept=image/*&accept=audio/*";
 
 // API
 export const API_URL =
